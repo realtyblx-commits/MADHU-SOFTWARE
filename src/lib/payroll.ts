@@ -229,8 +229,9 @@ export const slugFilename = (name: string, month: number, year: number) =>
   `${name.replace(/[^a-zA-Z0-9]+/g, "")}_${MONTHS[month - 1]}_${year}.pdf`;
 
 export function toCsv(rows: Record<string, unknown>[]): string {
-  if (rows.length === 0) return "";
-  const headers = Object.keys(rows[0]);
+  const first = rows[0];
+  if (!first) return "";
+  const headers = Object.keys(first);
   const escape = (v: unknown) => {
     const s = v === null || v === undefined ? "" : String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
