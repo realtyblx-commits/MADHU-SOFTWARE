@@ -48,6 +48,7 @@ function AuthPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) toast.error(error.message);
+    return;
   };
 
   const signUp = async (e: React.FormEvent) => {
