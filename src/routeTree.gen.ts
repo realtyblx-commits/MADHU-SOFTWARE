@@ -17,6 +17,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedEmployeesRouteImport } from './routes/_authenticated/employees'
 import { Route as AuthenticatedLeaveRouteImport } from './routes/_authenticated/leave'
 import { Route as AuthenticatedPayrollRouteImport } from './routes/_authenticated/payroll'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedPayslipsIndexRouteImport } from './routes/_authenticated/payslips/index'
 import { Route as AuthenticatedPayslipsIdRouteImport } from './routes/_authenticated/payslips/$id'
 
@@ -59,6 +60,11 @@ const AuthenticatedPayrollRoute = AuthenticatedPayrollRouteImport.update({
   path: '/payroll',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPayslipsIndexRoute =
   AuthenticatedPayslipsIndexRouteImport.update({
     id: '/payslips/',
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/employees': typeof AuthenticatedEmployeesRoute
   '/leave': typeof AuthenticatedLeaveRoute
   '/payroll': typeof AuthenticatedPayrollRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/payslips/$id': typeof AuthenticatedPayslipsIdRoute
   '/payslips/': typeof AuthenticatedPayslipsIndexRoute
 }
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/employees': typeof AuthenticatedEmployeesRoute
   '/leave': typeof AuthenticatedLeaveRoute
   '/payroll': typeof AuthenticatedPayrollRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/payslips/$id': typeof AuthenticatedPayslipsIdRoute
   '/payslips': typeof AuthenticatedPayslipsIndexRoute
 }
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/_authenticated/employees': typeof AuthenticatedEmployeesRoute
   '/_authenticated/leave': typeof AuthenticatedLeaveRoute
   '/_authenticated/payroll': typeof AuthenticatedPayrollRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/payslips/$id': typeof AuthenticatedPayslipsIdRoute
   '/_authenticated/payslips/': typeof AuthenticatedPayslipsIndexRoute
 }
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/employees'
     | '/leave'
     | '/payroll'
+    | '/settings'
     | '/payslips/$id'
     | '/payslips/'
   fileRoutesByTo: FileRoutesByTo
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
     | '/employees'
     | '/leave'
     | '/payroll'
+    | '/settings'
     | '/payslips/$id'
     | '/payslips'
   id:
@@ -139,6 +150,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employees'
     | '/_authenticated/leave'
     | '/_authenticated/payroll'
+    | '/_authenticated/settings'
     | '/_authenticated/payslips/$id'
     | '/_authenticated/payslips/'
   fileRoutesById: FileRoutesById
@@ -207,6 +219,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPayrollRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/payslips/': {
       id: '/_authenticated/payslips/'
       path: '/payslips'
@@ -230,6 +249,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEmployeesRoute: typeof AuthenticatedEmployeesRoute
   AuthenticatedLeaveRoute: typeof AuthenticatedLeaveRoute
   AuthenticatedPayrollRoute: typeof AuthenticatedPayrollRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedPayslipsIdRoute: typeof AuthenticatedPayslipsIdRoute
   AuthenticatedPayslipsIndexRoute: typeof AuthenticatedPayslipsIndexRoute
 }
@@ -240,6 +260,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEmployeesRoute: AuthenticatedEmployeesRoute,
   AuthenticatedLeaveRoute: AuthenticatedLeaveRoute,
   AuthenticatedPayrollRoute: AuthenticatedPayrollRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedPayslipsIdRoute: AuthenticatedPayslipsIdRoute,
   AuthenticatedPayslipsIndexRoute: AuthenticatedPayslipsIndexRoute,
 }
