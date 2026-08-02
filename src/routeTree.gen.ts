@@ -17,6 +17,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedEmployeesRouteImport } from './routes/_authenticated/employees'
 import { Route as AuthenticatedLeaveRouteImport } from './routes/_authenticated/leave'
 import { Route as AuthenticatedPayrollRouteImport } from './routes/_authenticated/payroll'
+import { Route as AuthenticatedPayslipsIndexRouteImport } from './routes/_authenticated/payslips/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -57,6 +58,12 @@ const AuthenticatedPayrollRoute = AuthenticatedPayrollRouteImport.update({
   path: '/payroll',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPayslipsIndexRoute =
+  AuthenticatedPayslipsIndexRouteImport.update({
+    id: '/payslips/',
+    path: '/payslips/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/employees': typeof AuthenticatedEmployeesRoute
   '/leave': typeof AuthenticatedLeaveRoute
   '/payroll': typeof AuthenticatedPayrollRoute
+  '/payslips/': typeof AuthenticatedPayslipsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -75,6 +83,7 @@ export interface FileRoutesByTo {
   '/employees': typeof AuthenticatedEmployeesRoute
   '/leave': typeof AuthenticatedLeaveRoute
   '/payroll': typeof AuthenticatedPayrollRoute
+  '/payslips': typeof AuthenticatedPayslipsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -86,6 +95,7 @@ export interface FileRoutesById {
   '/_authenticated/employees': typeof AuthenticatedEmployeesRoute
   '/_authenticated/leave': typeof AuthenticatedLeaveRoute
   '/_authenticated/payroll': typeof AuthenticatedPayrollRoute
+  '/_authenticated/payslips/': typeof AuthenticatedPayslipsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/employees'
     | '/leave'
     | '/payroll'
+    | '/payslips/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/employees'
     | '/leave'
     | '/payroll'
+    | '/payslips'
   id:
     | '__root__'
     | '/'
@@ -116,6 +128,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employees'
     | '/_authenticated/leave'
     | '/_authenticated/payroll'
+    | '/_authenticated/payslips/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -182,6 +195,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPayrollRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/payslips/': {
+      id: '/_authenticated/payslips/'
+      path: '/payslips'
+      fullPath: '/payslips/'
+      preLoaderRoute: typeof AuthenticatedPayslipsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -191,6 +211,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEmployeesRoute: typeof AuthenticatedEmployeesRoute
   AuthenticatedLeaveRoute: typeof AuthenticatedLeaveRoute
   AuthenticatedPayrollRoute: typeof AuthenticatedPayrollRoute
+  AuthenticatedPayslipsIndexRoute: typeof AuthenticatedPayslipsIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -199,6 +220,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEmployeesRoute: AuthenticatedEmployeesRoute,
   AuthenticatedLeaveRoute: AuthenticatedLeaveRoute,
   AuthenticatedPayrollRoute: AuthenticatedPayrollRoute,
+  AuthenticatedPayslipsIndexRoute: AuthenticatedPayslipsIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
