@@ -14,16 +14,566 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      attendance: {
+        Row: {
+          attendance_date: string
+          check_in: string | null
+          check_out: string | null
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          id: string
+          late_minutes: number
+          remarks: string | null
+          status: string
+          updated_at: string
+          updated_by: string | null
+          working_hours: number
+        }
+        Insert: {
+          attendance_date: string
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          id?: string
+          late_minutes?: number
+          remarks?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          working_hours?: number
+        }
+        Update: {
+          attendance_date?: string
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          id?: string
+          late_minutes?: number
+          remarks?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          working_hours?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          created_by: string | null
+          details: Json | null
+          entity: string
+          entity_id: string | null
+          id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          created_by?: string | null
+          details?: Json | null
+          entity: string
+          entity_id?: string | null
+          id?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          created_by?: string | null
+          details?: Json | null
+          entity?: string
+          entity_id?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      company_settings: {
+        Row: {
+          authorized_signatory: string
+          company_name: string
+          created_at: string
+          created_by: string | null
+          default_payment_mode: string
+          fixed_days_per_month: number
+          grace_minutes: number
+          id: string
+          late_block_amount: number
+          late_block_minutes: number
+          logo_url: string | null
+          office_end: string
+          office_start: string
+          payslip_footer: string
+          salary_day_basis: string
+          updated_at: string
+          updated_by: string | null
+          website: string
+        }
+        Insert: {
+          authorized_signatory?: string
+          company_name?: string
+          created_at?: string
+          created_by?: string | null
+          default_payment_mode?: string
+          fixed_days_per_month?: number
+          grace_minutes?: number
+          id?: string
+          late_block_amount?: number
+          late_block_minutes?: number
+          logo_url?: string | null
+          office_end?: string
+          office_start?: string
+          payslip_footer?: string
+          salary_day_basis?: string
+          updated_at?: string
+          updated_by?: string | null
+          website?: string
+        }
+        Update: {
+          authorized_signatory?: string
+          company_name?: string
+          created_at?: string
+          created_by?: string | null
+          default_payment_mode?: string
+          fixed_days_per_month?: number
+          grace_minutes?: number
+          id?: string
+          late_block_amount?: number
+          late_block_minutes?: number
+          logo_url?: string | null
+          office_end?: string
+          office_start?: string
+          payslip_footer?: string
+          salary_day_basis?: string
+          updated_at?: string
+          updated_by?: string | null
+          website?: string
+        }
+        Relationships: []
+      }
+      employees: {
+        Row: {
+          aadhaar: string | null
+          account_number: string | null
+          address: string | null
+          bank_name: string | null
+          created_at: string
+          created_by: string | null
+          department: string | null
+          designation: string | null
+          email: string | null
+          employee_code: string
+          employment_status: string
+          full_name: string
+          gross_salary: number
+          id: string
+          ifsc_code: string | null
+          joining_date: string | null
+          mobile: string | null
+          pan: string | null
+          payment_mode: string
+          updated_at: string
+          updated_by: string | null
+          user_id: string | null
+        }
+        Insert: {
+          aadhaar?: string | null
+          account_number?: string | null
+          address?: string | null
+          bank_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          designation?: string | null
+          email?: string | null
+          employee_code: string
+          employment_status?: string
+          full_name: string
+          gross_salary?: number
+          id?: string
+          ifsc_code?: string | null
+          joining_date?: string | null
+          mobile?: string | null
+          pan?: string | null
+          payment_mode?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          aadhaar?: string | null
+          account_number?: string | null
+          address?: string | null
+          bank_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          designation?: string | null
+          email?: string | null
+          employee_code?: string
+          employment_status?: string
+          full_name?: string
+          gross_salary?: number
+          id?: string
+          ifsc_code?: string | null
+          joining_date?: string | null
+          mobile?: string | null
+          pan?: string | null
+          payment_mode?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      holidays: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          holiday_date: string
+          id: string
+          name: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          holiday_date: string
+          id?: string
+          name: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          holiday_date?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      leave_requests: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          end_date: string
+          hr_approved_at: string | null
+          id: string
+          leave_type: string
+          manager_approved_at: string | null
+          reason: string | null
+          start_date: string
+          status: string
+          total_days: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          end_date: string
+          hr_approved_at?: string | null
+          id?: string
+          leave_type?: string
+          manager_approved_at?: string | null
+          reason?: string | null
+          start_date: string
+          status?: string
+          total_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          end_date?: string
+          hr_approved_at?: string | null
+          id?: string
+          leave_type?: string
+          manager_approved_at?: string | null
+          reason?: string | null
+          start_date?: string
+          status?: string
+          total_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll: {
+        Row: {
+          absent_days: number
+          absent_deduction: number
+          additional_deductions: number
+          additional_earnings: number
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          gross_salary: number
+          id: string
+          late_deduction: number
+          late_minutes: number
+          locked: boolean
+          net_salary: number
+          notes: string | null
+          payable_days: number
+          payment_mode: string
+          payment_status: string
+          payslip_number: string
+          per_day_salary: number
+          period_month: number
+          period_year: number
+          present_days: number
+          status: string
+          total_days: number
+          total_deduction: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          absent_days?: number
+          absent_deduction?: number
+          additional_deductions?: number
+          additional_earnings?: number
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          gross_salary?: number
+          id?: string
+          late_deduction?: number
+          late_minutes?: number
+          locked?: boolean
+          net_salary?: number
+          notes?: string | null
+          payable_days?: number
+          payment_mode?: string
+          payment_status?: string
+          payslip_number: string
+          per_day_salary?: number
+          period_month: number
+          period_year: number
+          present_days?: number
+          status?: string
+          total_days?: number
+          total_deduction?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          absent_days?: number
+          absent_deduction?: number
+          additional_deductions?: number
+          additional_earnings?: number
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          gross_salary?: number
+          id?: string
+          late_deduction?: number
+          late_minutes?: number
+          locked?: boolean
+          net_salary?: number
+          notes?: string | null
+          payable_days?: number
+          payment_mode?: string
+          payment_status?: string
+          payslip_number?: string
+          per_day_salary?: number
+          period_month?: number
+          period_year?: number
+          present_days?: number
+          status?: string
+          total_days?: number
+          total_deduction?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_adjustments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          label: string
+          payroll_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          label: string
+          payroll_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          label?: string
+          payroll_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_adjustments_payroll_id_fkey"
+            columns: ["payroll_id"]
+            isOneToOne: false
+            referencedRelation: "payroll"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      salary_structure: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          employee_id: string
+          gross_salary: number
+          id: string
+          notes: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          effective_from: string
+          employee_id: string
+          gross_salary: number
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          employee_id?: string
+          gross_salary?: number
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salary_structure_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_payroll_manager: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "hr" | "employee"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +700,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "hr", "employee"],
+    },
   },
 } as const
