@@ -144,7 +144,7 @@ function PayrollPage() {
   });
 
   const update = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: Record<string, unknown> }) => {
+    mutationFn: async ({ id, patch }: { id: string; patch: { locked: boolean; status: string } }) => {
       const { error } = await supabase.from("payroll").update(patch).eq("id", id);
       if (error) throw error;
     },
