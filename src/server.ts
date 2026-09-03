@@ -95,6 +95,91 @@ export default {
         );
       }
 
+      if (url.pathname === "/api/admin/create-employee-user") {
+        if (request.method === "OPTIONS") {
+          return new Response(null, {
+            status: 204,
+            headers: {
+              "access-control-allow-origin": "*",
+              "access-control-allow-methods": "POST, OPTIONS",
+              "access-control-allow-headers": "content-type, authorization",
+            },
+          });
+        }
+
+        if (request.method === "POST") {
+          try {
+            const body = (await request.json()) as any;
+            const { email, password, full_name, employee_code } = body || {};
+            if (!email || !email.trim()) {
+              return new Response(JSON.stringify({ error: "Email is required" }), {
+                status: 400,
+                headers: { "content-type": "application/json" },
+              });
+            }
+
+            const { createClient } = await import("@supabase/supabase-js");
+            const supabaseUrl =
+              (env as any)?.SUPABASE_URL ||
+              (env as any)?.VITE_SUPABASE_URL ||
+              process.env["SUPABASE_URL"] ||
+              process.env["VITE_SUPABASE_URL"] ||
+              "https://quqlutfkkydruoflbuil.supabase.co";
+
+            const serviceKey =
+              (env as any)?.SUPABASE_SERVICE_ROLE_KEY ||
+              process.env["SUPABASE_SERVICE_ROLE_KEY"] ||
+              "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1cWx1dGZra3lkcnVvZmxidWlsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4ODM5OTk5NiwiZXhwIjoyMTAzOTc1OTk2fQ.OxF0usSZmA5K23jUNqjGJYHDD0dn4YTqCfyN8Nf-hkw";
+
+            const adminClient = createClient(supabaseUrl, serviceKey, {
+              auth: { autoRefreshToken: false, persistSession: false },
+            });
+
+            // Check if user exists in auth.users
+            const { data: userList } = await adminClient.auth.admin.listUsers();
+            const existing = userList?.users?.find(
+              (u) => u.email?.toLowerCase() === email.trim().toLowerCase()
+            );
+
+            let userId = existing?.id;
+            if (existing) {
+              if (password && password.trim()) {
+                await adminClient.auth.admin.updateUserById(existing.id, {
+                  password: password.trim(),
+                  user_metadata: { full_name, employee_code, role: "employee" },
+                });
+              }
+            } else {
+              const { data: newUser, error: createError } =
+                await adminClient.auth.admin.createUser({
+                  email: email.trim().toLowerCase(),
+                  password: password?.trim() || "blx123",
+                  email_confirm: true,
+                  user_metadata: { full_name, employee_code, role: "employee" },
+                });
+              if (createError) throw createError;
+              userId = newUser.user.id;
+            }
+
+            return new Response(JSON.stringify({ ok: true, user_id: userId }), {
+              status: 200,
+              headers: {
+                "content-type": "application/json",
+                "access-control-allow-origin": "*",
+              },
+            });
+          } catch (err: any) {
+            return new Response(JSON.stringify({ error: err.message }), {
+              status: 500,
+              headers: {
+                "content-type": "application/json",
+                "access-control-allow-origin": "*",
+              },
+            });
+          }
+        }
+      }
+
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);

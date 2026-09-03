@@ -142,7 +142,7 @@ function EmployeesPage() {
       // Provision/sync employee portal user credentials
       if (body.email) {
         try {
-          await fetch("/api/admin/create-employee-user", {
+          const authRes = await fetch("/api/admin/create-employee-user", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -152,6 +152,13 @@ function EmployeesPage() {
               employee_code: body.employee_code,
             }),
           });
+          const authJson = (await authRes.json()) as any;
+          if (authJson?.user_id && body.employee_code) {
+            await supabase
+              .from("employees")
+              .update({ user_id: authJson.user_id } as never)
+              .eq("employee_code", body.employee_code);
+          }
         } catch (authErr) {
           console.warn("Notice: remote Supabase Auth user provisioning:", authErr);
         }
