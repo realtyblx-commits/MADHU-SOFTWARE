@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { jsonStore } from "@/lib/json-store";
 
 export type AuditAction =
   | "CREATE_PAYSLIP"
@@ -89,11 +88,9 @@ export async function logAuditEvent({
       } catch {}
     }
 
-    // Fallback to local session
     if (!activeEmail) {
-      const localSession = jsonStore.getSession();
-      activeEmail = localSession?.user?.email || "admin@blxrealty.com";
-      activeRole = activeRole || (activeEmail.includes("admin") ? "admin" : "employee");
+      activeEmail = "admin@blxrealty.com";
+      activeRole = activeRole || "admin";
     }
 
     if (!activeRole) {
@@ -114,17 +111,7 @@ export async function logAuditEvent({
     };
 
     // 1. Insert into Supabase
-    const { data, error } = await supabase.from("audit_logs").insert(logPayload as any).select();
-
-    // 2. Also keep local jsonStore in sync
-    const insertedItem: AuditLogItem = {
-      id: (data && data[0]?.id) || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `log-${Date.now()}`),
-      ...logPayload,
-    };
-    try {
-      const localTable = jsonStore.getTable("audit_logs");
-      jsonStore.setTable("audit_logs", [insertedItem, ...localTable].slice(0, 500));
-    } catch {}
+    const { error } = await supabase.from("audit_logs").insert(logPayload as any);
 
     if (error) {
       console.warn("[Audit Logger Notice]", error.message);

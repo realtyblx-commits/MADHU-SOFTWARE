@@ -4,7 +4,6 @@ import { useMemo, useRef, useState } from "react";
 import { Plus, Search, Upload, Download, Pencil, Trash2, Key, ShieldCheck, FolderLock, User, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { jsonStore } from "@/lib/json-store";
 import { logAuditEvent } from "@/lib/audit";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DocumentVaultModal } from "@/components/employees/DocumentVaultModal";
@@ -156,13 +155,6 @@ function EmployeesPage() {
         } catch (authErr) {
           console.warn("Notice: remote Supabase Auth user provisioning:", authErr);
         }
-
-        jsonStore.registerOrUpdateEmployeeUser({
-          email: body.email,
-          full_name: body.full_name || "Employee",
-          password: portalPassword || "blx123",
-          employee_code: body.employee_code,
-        });
       }
 
       await logAuditEvent({

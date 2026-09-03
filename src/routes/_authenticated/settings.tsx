@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Upload, Building2, Clock, IndianRupee, FileText, CheckCircle2, Sun, Trash2, AlertTriangle, Download, Database, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { jsonStore } from "@/lib/json-store";
 import { logAuditEvent } from "@/lib/audit";
 import { generateFullDatabaseBackup, downloadFile, convertToCSV } from "@/lib/backup";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -496,16 +495,23 @@ function SettingsPage() {
               variant="destructive"
               size="sm"
               onClick={async () => {
-                if (window.confirm("Are you sure you want to delete ALL data? This will remove all employees, attendance, and payslips.")) {
-                  jsonStore.clearAllOperationalData();
+                if (window.confirm("Are you sure you want to delete ALL data? This will remove all employees, attendance, and payslips from Supabase.")) {
+                  await Promise.all([
+                    supabase.from("payroll_adjustments").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+                    supabase.from("payslips").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+                    supabase.from("payroll").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+                    supabase.from("attendance").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+                    supabase.from("leave_requests").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+                    supabase.from("employees").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+                  ]);
                   qc.invalidateQueries();
                   await logAuditEvent({
                     action: "DELETE_ALL_DATA",
                     entity_type: "database",
                     entity_id: "all",
-                    description: "All employee, attendance, document, and payslip data cleared by Admin.",
+                    description: "All employee, attendance, document, and payslip data cleared from Supabase by Admin.",
                   });
-                  toast.success("All data has been deleted. System is in fresh state.");
+                  toast.success("All data has been deleted from Supabase. System is in fresh state.");
                 }
               }}
               className="font-semibold gap-1.5"

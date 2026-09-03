@@ -137,10 +137,6 @@ function AuditLogsPage() {
   const clearMutation = useMutation({
     mutationFn: async () => {
       await supabase.from("audit_logs").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      try {
-        const { jsonStore } = await import("@/lib/json-store");
-        jsonStore.setTable("audit_logs", []);
-      } catch {}
       await logAuditEvent({
         action: "CLEAR_DATA",
         entity_type: "system",
