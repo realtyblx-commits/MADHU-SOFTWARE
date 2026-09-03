@@ -13,7 +13,7 @@ export interface DBSession {
   user: DBUser;
 }
 
-const STORAGE_KEY = "blx_payroll_db_clean_production_v1";
+const STORAGE_KEY = "blx_payroll_db_v2_zero_state";
 const AUTH_KEY = "blx_payroll_auth";
 
 type DatabaseData = Record<string, any[]>;
@@ -71,86 +71,7 @@ const initialData: DatabaseData = {
     },
   ],
   payslips: [],
-  employees: [
-    {
-      id: "582fba84-69f4-4ec8-8b7b-4726a18b29f3",
-      user_id: "9f06b5ae-8273-4514-8a85-aac6e7a7edd1",
-      employee_code: "BLX26-001",
-      full_name: "Devesh Vats",
-      designation: "Realtor",
-      department: "Sales",
-      employment_status: "Active",
-      email: "devesh@theblxrealty.com",
-      payment_mode: "Bank Transfer",
-      gross_salary: 30000,
-      joining_date: "2026-01-01",
-    },
-    {
-      id: "27e6f551-c0ab-4102-8577-a5b1da5993d3",
-      user_id: "8dc636ab-930b-4235-8d20-5cceb10d5654",
-      employee_code: "BLX26-002",
-      full_name: "Vishal M Raju",
-      designation: "Senior Realtor",
-      department: "Sales",
-      employment_status: "Active",
-      email: "vishal@theblxrealty.com",
-      payment_mode: "Bank Transfer",
-      gross_salary: 50000,
-      joining_date: "2026-01-01",
-    },
-    {
-      id: "2774e557-9551-410a-a7b9-34a00b96ed04",
-      user_id: "8b8f1c06-e775-43f3-9ed5-14422c7abcac",
-      employee_code: "BLX26-003",
-      full_name: "Balindar",
-      designation: "Digital Marketing",
-      department: "Digital Marketing",
-      employment_status: "Active",
-      email: "balindar@theblxrealty.com",
-      payment_mode: "Bank Transfer",
-      gross_salary: 23000,
-      joining_date: "2026-01-01",
-    },
-    {
-      id: "264c2f32-1bcb-4402-ad67-fcdbfc825949",
-      user_id: "f5a03e3b-df8f-40e4-a62c-7c5e3073bc50",
-      employee_code: "BLX26-004",
-      full_name: "Chandrika",
-      designation: "Presales",
-      department: "Presales",
-      employment_status: "Active",
-      email: "chandrika@theblxrealty.com",
-      payment_mode: "Bank Transfer",
-      gross_salary: 23000,
-      joining_date: "2026-01-01",
-    },
-    {
-      id: "f29712ab-bd00-4a3c-8a41-42a5e682d3fb",
-      user_id: "0c53fdae-4edf-4235-991c-98b6e932cb9a",
-      employee_code: "BLX26-005",
-      full_name: "Siddarth",
-      designation: "Realtor",
-      department: "Sales",
-      employment_status: "Active",
-      email: "siddarth@theblxrealty.com",
-      payment_mode: "Bank Transfer",
-      gross_salary: 25000,
-      joining_date: "2026-01-01",
-    },
-    {
-      id: "c30f8456-2c60-4441-a029-670a84a9cdab",
-      user_id: "14e20174-b57e-40e3-8f5d-4b0a1e505eb4",
-      employee_code: "BLX26-006",
-      full_name: "Jigyasa Dhiman",
-      designation: "Content and Marketing",
-      department: "Marketing",
-      employment_status: "Active",
-      email: "jigyasa@theblxrealty.com",
-      payment_mode: "Bank Transfer",
-      gross_salary: 30000,
-      joining_date: "2026-01-01",
-    },
-  ],
+  employees: [],
   attendance: [],
   payroll: [],
   payroll_adjustments: [],
@@ -175,10 +96,6 @@ class JsonStore {
       if (stored) {
         try {
           this.data = JSON.parse(stored);
-          if (!this.data!["employees"] || this.data!["employees"].length === 0) {
-            this.data!["employees"] = JSON.parse(JSON.stringify(initialData["employees"]));
-            this.saveData();
-          }
           return this.data!;
         } catch (e) {
           console.warn("Resetting local cache to baseline", e);
