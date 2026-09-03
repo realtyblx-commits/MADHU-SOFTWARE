@@ -1,8 +1,16 @@
+:root {
+  --card-glow-bg: #ffffff;
+}
+
+.dark {
+  --card-glow-bg: #0d1527;
+}
+
 .border-glow-card {
   --edge-proximity: 0;
   --cursor-angle: 45deg;
-  --edge-sensitivity: 30;
-  --color-sensitivity: calc(var(--edge-sensitivity) + 20);
+  --edge-sensitivity: 25;
+  --color-sensitivity: calc(var(--edge-sensitivity) + 15);
   --border-radius: 14px;
   --glow-padding: 24px;
   --cone-spread: 25;
@@ -13,43 +21,45 @@
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border, #e2e8f0);
-  background-color: var(--card-bg, var(--card, #ffffff));
+  background-color: var(--card-bg, var(--card-glow-bg));
   overflow: visible;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
 }
 
 .dark .border-glow-card {
   border-color: var(--border, #1e293b);
-  background-color: var(--card-bg, var(--card, #0d1527));
+  background-color: var(--card-bg, var(--card-glow-bg));
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
 }
 
-/* Base transitions for glow elements */
-.border-glow-card::before,
-.border-glow-card > .edge-light {
-  content: "";
-  position: absolute;
+/* Inner content container: Always 100% solid background so internal card content is NEVER discolored */
+.border-glow-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
   border-radius: inherit;
-  transition: opacity 0.25s ease-out;
-  pointer-events: none;
+  background-color: var(--card-bg, var(--card-glow-bg));
 }
 
-.border-glow-card:not(:hover):not(.sweep-active)::before,
-.border-glow-card:not(:hover):not(.sweep-active) > .edge-light {
-  opacity: 0;
-  transition: opacity 0.6s ease-in-out;
-}
-
-/* Eliminate the dark internal shadow layer that corrupts light mode */
+/* Eliminate any internal fill layer completely */
 .border-glow-card::after {
   display: none !important;
 }
 
-/* Colored mesh-gradient border — restricted strictly to the 1px perimeter border */
+/* 1px glowing perimeter border ring */
 .border-glow-card::before {
+  content: "";
+  position: absolute;
   inset: -1px;
+  border-radius: calc(var(--border-radius) + 1px);
   padding: 1px;
+  pointer-events: none;
   z-index: 2;
+  transition: opacity 0.25s ease-out;
+
   background:
     var(--gradient-one, radial-gradient(at 80% 55%, hsla(268, 100%, 76%, 1) 0px, transparent 50%)),
     var(--gradient-two, radial-gradient(at 69% 34%, hsla(349, 100%, 74%, 1) 0px, transparent 50%)),
@@ -60,54 +70,51 @@
     var(--gradient-seven, radial-gradient(at 51% 4%, hsla(12, 100%, 72%, 1) 0px, transparent 50%)),
     var(--gradient-base, linear-gradient(#c299ff 0 100%));
 
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    conic-gradient(
-      from var(--cursor-angle) at center,
-      black calc(var(--cone-spread) * 1%),
-      transparent calc((var(--cone-spread) + 15) * 1%),
-      transparent calc((100 - var(--cone-spread) - 15) * 1%),
-      black calc((100 - var(--cone-spread)) * 1%)
-    );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    conic-gradient(
-      from var(--cursor-angle) at center,
-      black calc(var(--cone-spread) * 1%),
-      transparent calc((var(--cone-spread) + 15) * 1%),
-      transparent calc((100 - var(--cone-spread) - 15) * 1%),
-      black calc((100 - var(--cone-spread)) * 1%)
-    );
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
 
   opacity: calc((var(--edge-proximity) - var(--color-sensitivity)) / (100 - var(--color-sensitivity)));
 }
 
-/* Outer spotlight glow layer */
-.border-glow-card > .edge-light {
-  inset: calc(var(--glow-padding) * -1);
-  z-index: 1;
+.border-glow-card:not(:hover):not(.sweep-active)::before {
+  opacity: 0;
+  transition: opacity 0.6s ease-in-out;
+}
 
-  -webkit-mask-image:
-    conic-gradient(
-      from var(--cursor-angle) at center,
-      black 2.5%,
-      transparent 12%,
-      transparent 88%,
-      black 97.5%
-    );
-  mask-image:
-    conic-gradient(
-      from var(--cursor-angle) at center,
-      black 2.5%,
-      transparent 12%,
-      transparent 88%,
-      black 97.5%
-    );
+/* Outer spotlight glow layer radiating OUTSIDE the card */
+.border-glow-card > .edge-light {
+  content: "";
+  position: absolute;
+  inset: calc(var(--glow-padding) * -1);
+  border-radius: calc(var(--border-radius) + var(--glow-padding));
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity 0.25s ease-out;
+
+  -webkit-mask-image: conic-gradient(
+    from var(--cursor-angle) at center,
+    black 2.5%,
+    transparent 12%,
+    transparent 88%,
+    black 97.5%
+  );
+  mask-image: conic-gradient(
+    from var(--cursor-angle) at center,
+    black 2.5%,
+    transparent 12%,
+    transparent 88%,
+    black 97.5%
+  );
 
   opacity: calc((var(--edge-proximity) - var(--edge-sensitivity)) / (100 - var(--edge-sensitivity)));
   mix-blend-mode: plus-lighter;
+}
+
+.border-glow-card:not(:hover):not(.sweep-active) > .edge-light {
+  opacity: 0;
+  transition: opacity 0.6s ease-in-out;
 }
 
 .border-glow-card > .edge-light::before {
@@ -121,14 +128,4 @@
     0 0 8px 0 var(--glow-color-40, hsl(40deg 80% 80% / 40%)),
     0 0 16px 0 var(--glow-color-30, hsl(40deg 80% 80% / 30%)),
     0 0 28px 2px var(--glow-color-20, hsl(40deg 80% 80% / 20%));
-}
-
-.border-glow-inner {
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  overflow: visible;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
 }
