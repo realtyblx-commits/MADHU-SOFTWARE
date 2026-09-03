@@ -47,6 +47,54 @@ function isH3SwallowedErrorBody(body: string): boolean {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      const url = new URL(request.url);
+      if (url.pathname === "/api/health") {
+        if (request.method === "OPTIONS") {
+          return new Response(null, {
+            status: 204,
+            headers: {
+              "access-control-allow-origin": "*",
+              "access-control-allow-methods": "GET, HEAD, OPTIONS",
+            },
+          });
+        }
+
+        let dbStatus = "connected";
+        try {
+          const supabaseUrl =
+            (env as any)?.VITE_SUPABASE_URL ||
+            process.env["VITE_SUPABASE_URL"] ||
+            "https://quqlutfkkydruoflbuil.supabase.co";
+          const anonKey = (env as any)?.VITE_SUPABASE_ANON_KEY || process.env["VITE_SUPABASE_ANON_KEY"];
+          if (anonKey) {
+            const probe = await fetch(`${supabaseUrl}/rest/v1/company_settings?select=id&limit=1`, {
+              headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+            });
+            if (probe.status === 503 || probe.status === 401) {
+              dbStatus = "paused_or_initializing";
+            }
+          }
+        } catch {
+          dbStatus = "unreachable";
+        }
+
+        return new Response(
+          JSON.stringify({
+            status: "ok",
+            timestamp: new Date().toISOString(),
+            service: "BLX Realty Payroll Suite",
+            database: dbStatus,
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+              "access-control-allow-origin": "*",
+            },
+          }
+        );
+      }
+
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);

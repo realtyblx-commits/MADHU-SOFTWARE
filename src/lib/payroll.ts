@@ -44,14 +44,60 @@ export interface CompanySettings {
   website: string;
   office_start: string;
   office_end: string;
+  office_timing?: string;
+  late_threshold?: string;
   grace_minutes: number;
   late_block_minutes: number;
   late_block_amount: number;
   salary_day_basis: string;
   fixed_days_per_month: number;
   default_payment_mode: string;
+  default_currency?: string;
+  payslip_prefix?: string;
+  employee_id_prefix?: string;
   payslip_footer: string;
   authorized_signatory: string;
+  authorized_signature?: string | null;
+}
+
+export interface PayslipRecord {
+  id: string;
+  payslip_number: string;
+  employee_id: string;
+  employee_name: string;
+  salary_period_start: string;
+  salary_period_end: string;
+  salary_period_label?: string;
+  payment_mode: string;
+  absent_days: number;
+  late_minutes: number;
+  office_timing: string;
+  gross_salary: number;
+  absent_deduction: number;
+  late_deduction: number;
+  total_deduction: number;
+  net_salary: number;
+  payment_status: string;
+  employee_signature?: string | null;
+  authorized_signature?: string | null;
+  authorized_signatory_label?: string;
+  company_name?: string;
+  company_website?: string;
+  company_logo?: string | null;
+  status?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeeDocument {
+  id: string;
+  name: string;
+  category: "aadhaar" | "pan" | "bank_passbook" | "photo" | "offer_letter" | "other";
+  file_url: string;
+  file_name: string;
+  file_size?: string;
+  uploaded_by: "admin" | "employee";
+  uploaded_at: string;
 }
 
 export interface Employee {
@@ -73,6 +119,11 @@ export interface Employee {
   ifsc_code: string | null;
   payment_mode: string;
   gross_salary: number;
+  aadhaar_card_doc?: string | null;
+  pan_card_doc?: string | null;
+  bank_passbook_doc?: string | null;
+  photo_doc?: string | null;
+  documents?: EmployeeDocument[];
 }
 
 export interface AttendanceRow {
@@ -225,8 +276,56 @@ export const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 10
 export const payslipNumber = (code: string, month: number, year: number) =>
   `BLX/${year}${String(month).padStart(2, "0")}/${code}`;
 
-export const slugFilename = (name: string, month: number, year: number) =>
-  `${name.replace(/[^a-zA-Z0-9]+/g, "")}_${MONTHS[month - 1]}_${year}.pdf`;
+export function formatSalaryMonthYear(start?: string, end?: string, label?: string): string {
+  if (label && /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(label)) {
+    return label;
+  }
+  if (start) {
+    const d = new Date(start);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleString("en-US", { month: "long", year: "numeric" });
+    }
+  }
+  if (end) {
+    const d = new Date(end);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleString("en-US", { month: "long", year: "numeric" });
+    }
+  }
+  return label || "—";
+}
+
+export function mapPayrollToPayslip(r: any): PayslipRecord {
+  const emp = r.employees;
+  return {
+    id: r.id,
+    payslip_number: r.payslip_number || `PS-${r.period_year}-${String(r.period_month).padStart(2, "0")}`,
+    employee_id: emp?.employee_code || "BLX26-001",
+    employee_name: emp?.full_name || "Employee",
+    salary_period_start: `${r.period_year}-${String(r.period_month).padStart(2, "0")}-01`,
+    salary_period_end: `${r.period_year}-${String(r.period_month).padStart(2, "0")}-${String(r.total_days || 30).padStart(2, "0")}`,
+    salary_period_label: `${r.period_month}/${r.period_year}`,
+    payment_mode: r.payment_mode || "Bank Transfer",
+    absent_days: r.absent_days || 0,
+    late_minutes: r.late_minutes || 0,
+    office_timing: "10:30 AM - 6:30 PM",
+    gross_salary: Number(r.gross_salary) || 0,
+    absent_deduction: Number(r.absent_deduction) || 0,
+    late_deduction: Number(r.late_deduction) || 0,
+    total_deduction: Number(r.total_deduction) || 0,
+    net_salary: Number(r.net_salary) || 0,
+    payment_status: "Processed through Bank Transfer",
+    employee_signature: null,
+    authorized_signature: null,
+    authorized_signatory_label: "Authorized Signatory (BLX Realty Pvt Ltd)",
+    company_name: "BLX REALTY PRIVATE LIMITED",
+    company_website: "www.theblxrealty.com",
+    company_logo: "/apple-touch-icon.png",
+    status: r.status || "Generated",
+    created_at: r.created_at || new Date().toISOString(),
+    updated_at: r.updated_at || new Date().toISOString(),
+  };
+}
 
 export function toCsv(rows: Record<string, unknown>[]): string {
   const first = rows[0];
@@ -294,5 +393,38 @@ export function parseCsv(text: string): Record<string, string>[] {
       obj[h.trim()] = (r[i] ?? "").trim();
     });
     return obj;
+  });
+}
+
+export function calculateDeductions(
+  grossSalary: number,
+  absentDays: number,
+  lateMinutes: number,
+  workingDaysInMonth = 30,
+  workMinutesPerDay = 480 // 8 hours * 60 min
+) {
+  const perDaySalary = workingDaysInMonth > 0 ? grossSalary / workingDaysInMonth : 0;
+  const perMinuteSalary = workMinutesPerDay > 0 ? perDaySalary / workMinutesPerDay : 0;
+
+  const absentDeduction = Number((absentDays * perDaySalary).toFixed(2));
+  const lateDeduction = Number((lateMinutes * perMinuteSalary).toFixed(2));
+  const totalDeduction = Number((absentDeduction + lateDeduction).toFixed(2));
+  const netSalary = Number(Math.max(0, grossSalary - totalDeduction).toFixed(2));
+
+  return {
+    perDaySalary,
+    absentDeduction,
+    lateDeduction,
+    totalDeduction,
+    netSalary,
+  };
+}
+
+export function formatIndianCurrency(amount: number | string): string {
+  const num = typeof amount === "string" ? parseFloat(amount) : amount;
+  if (isNaN(num)) return "0.00";
+  return num.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   });
 }

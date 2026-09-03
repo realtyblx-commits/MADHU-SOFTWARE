@@ -498,25 +498,17 @@ Printable payroll register.
 
 Future-ready architecture for biometric attendance integration, statutory deductions (PF/ESI/TDS), Form 16 generation, reimbursement management, and accounting software integration without major schema changes.
 
-Important: Replicate the attached BLX Realty salary slip design as closely as possible, using a print-friendly HTML/CSS layout that renders consistently in PDF output. The salary slip should be pixel-accurate to the provided template while remaining fully dynamic with data fetched from Supabase.
+Important: Replicate the attached BLX Realty salary slip design as closely as possible, using a print-friendly HTML/CSS layout that renders consistently in PDF output. The salary slip should be pixel-accurate to the provided template while remaining fully dynamic.
 
-This project was built with [Lovable](https://lovable.dev).
+## Development & Testing
 
-## Build with Lovable
+This project operates offline with local JSON data storage and mock authentication.
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/f30b6a57-45fe-42d8-91c9-753ce10d12f5).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+### Demo Credentials:
+- **Admin**: `admin@blxrealty.com` / `admin123`
+- **Employee**: `employee@blxrealty.com` / `employee123`
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
 npm run dev
 ```
+

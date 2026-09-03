@@ -11,7 +11,6 @@ import { useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
   return (
@@ -38,9 +37,6 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -78,21 +74,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "BLX Realty Payroll Suite" },
+      { name: "description", content: "BLX Realty Enterprise Payroll & Payslip Management System" },
+      { name: "author", content: "BLX Realty" },
+      { property: "og:title", content: "BLX Realty Payroll Suite" },
+      { property: "og:description", content: "BLX Realty Enterprise Payroll & Payslip Management System" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/images.png", type: "image/png" },
+      { rel: "shortcut icon", href: "/images.png", type: "image/png" },
+      { rel: "apple-touch-icon", href: "/images.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -101,11 +98,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+import { ThemeProvider } from "@/components/theme-provider";
+
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("blx_theme");var d=document.documentElement;if(t==="dark"||(!t&&window.matchMedia("(prefers-color-scheme:dark)").matches)){d.classList.add("dark")}else{d.classList.remove("dark")}}catch(e){}window.onerror=function(msg,url,l,c,err){var s=String(msg||"")+" "+String(err?.message||"");if(s.indexOf("startTime")!==-1||s.indexOf("reportAllChanges")!==-1){return true;}};window.addEventListener("error",function(e){if(e?.error?.message?.includes("startTime")||e?.message?.includes("startTime")||e?.message?.includes("reportAllChanges")){e.preventDefault();e.stopImmediatePropagation();return true;}},true);window.addEventListener("unhandledrejection",function(e){if(e?.reason?.message?.includes("startTime")||e?.reason?.message?.includes("reportAllChanges")){e.preventDefault();return true;}},true);})()`,
+          }}
+        />
       </head>
       <body>
         {children}
@@ -119,10 +123,12 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
-      <Toaster richColors position="top-right" />
-    </QueryClientProvider>
+    <ThemeProvider defaultTheme="system" storageKey="blx_theme">
+      <QueryClientProvider client={queryClient}>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+        <Toaster richColors position="top-right" />
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

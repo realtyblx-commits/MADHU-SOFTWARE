@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/layout/AppShell";
 import { useEmployees, useSettings, monthRange } from "@/lib/queries";
 import { useAuth } from "@/hooks/use-auth";
+import { logAuditEvent } from "@/lib/audit";
 import {
   MONTHS,
   computePayroll,
@@ -134,6 +135,14 @@ function PayrollPage() {
         .from("payroll")
         .upsert(rows as never, { onConflict: "employee_id,period_month,period_year" });
       if (error) throw error;
+
+      await logAuditEvent({
+        action: "PAYROLL_GENERATE",
+        entity_type: "payroll",
+        description: `Generated payroll for ${rows.length} employee${rows.length === 1 ? "" : "s"} for ${MONTHS[month - 1]} ${year}`,
+        details: { count: rows.length, month: MONTHS[month - 1], year },
+      });
+
       return rows.length;
     },
     onSuccess: (count) => {
@@ -147,6 +156,16 @@ function PayrollPage() {
     mutationFn: async ({ id, patch }: { id: string; patch: { locked: boolean; status: string } }) => {
       const { error } = await supabase.from("payroll").update(patch).eq("id", id);
       if (error) throw error;
+
+      const record = payrolls.find((p) => p.id === id);
+      const emp = employees.find((e) => e.id === record?.employee_id);
+      await logAuditEvent({
+        action: "PAYROLL_APPROVE",
+        entity_type: "payroll",
+        entity_id: emp?.employee_code || id,
+        description: `Updated payroll for ${emp?.full_name || "Employee"} (${MONTHS[month - 1]} ${year}) to status "${patch.status}" (Locked: ${patch.locked})`,
+        details: { id, patch, employee: emp?.full_name, status: patch.status },
+      });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["payroll"] }),
     onError: (e: Error) => toast.error(e.message),
@@ -171,12 +190,18 @@ function PayrollPage() {
             <>
               <Button
                 variant="outline"
-                onClick={() =>
+                onClick={() => {
                   downloadCsv(
                     `payroll_${MONTHS[month - 1]}_${year}.csv`,
                     payrolls as unknown as Record<string, unknown>[],
-                  )
-                }
+                  );
+                  logAuditEvent({
+                    action: "EXPORT_DATA",
+                    entity_type: "payroll",
+                    description: `Manager exported payroll CSV register for ${MONTHS[month - 1]} ${year}`,
+                    details: { count: payrolls.length, month: MONTHS[month - 1], year },
+                  });
+                }}
               >
                 <Download className="size-4" /> Export register
               </Button>

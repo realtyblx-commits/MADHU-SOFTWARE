@@ -1,127 +1,262 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Printer } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Printer, Download, Edit3, Trash2, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useSettings } from "@/lib/queries";
-import { inr2, monthLabel, type Employee, type PayrollRow } from "@/lib/payroll";
+import { useAuth } from "@/hooks/use-auth";
+import { logAuditEvent } from "@/lib/audit";
+import { dispatchPayslipNotification } from "@/lib/notifications";
+import { PayslipRecord, mapPayrollToPayslip } from "@/lib/payroll";
+import { generatePayslipPDF } from "@/lib/pdf-generator";
+import { uploadPayslipPDF, deletePayslipPDF } from "@/lib/storage";
+import { PayslipDocument } from "@/components/payslips/PayslipDocument";
+import { PayslipCMS } from "@/components/payslips/PayslipCMS";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/payslips/$id")({
-  component: PayslipPage,
+  component: PayslipDetailPage,
 });
 
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between border-b border-border/60 py-1.5 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="num font-medium">{value}</span>
-    </div>
-  );
-}
-
-function PayslipPage() {
+function PayslipDetailPage() {
   const { id } = Route.useParams();
-  const { data: settings } = useSettings();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const printRef = useRef<HTMLDivElement>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
-  const { data } = useQuery({
+  // Fetch payslip by ID from payslips or fallback to payroll table
+  const { data: payslip, isLoading } = useQuery<PayslipRecord | null>({
     queryKey: ["payslip", id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Check in payslips table first
+      const { data: ps } = await supabase.from("payslips").select("*").eq("id", id).maybeSingle();
+      if (ps) return ps as unknown as PayslipRecord;
+
+      // Fallback: check payroll table
+      const { data: pr } = await supabase
         .from("payroll")
         .select("*, employees(*)")
         .eq("id", id)
         .maybeSingle();
-      if (error) throw error;
-      return data as unknown as (PayrollRow & { employees: Employee | null }) | null;
+
+      if (pr) return mapPayrollToPayslip(pr);
+      return null;
     },
   });
 
-  if (!data) return <p className="text-muted-foreground">Loading payslip…</p>;
-  const emp = data.employees;
+  const { user } = useAuth();
+  const hasNotifiedViewRef = useRef(false);
+
+  React.useEffect(() => {
+    if (payslip && !hasNotifiedViewRef.current) {
+      hasNotifiedViewRef.current = true;
+      dispatchPayslipNotification({
+        action: "viewed",
+        employeeName: payslip.employee_name,
+        employeeCode: payslip.employee_id,
+        payslipNumber: payslip.payslip_number,
+        period: payslip.salary_period_label,
+      });
+      logAuditEvent({
+        action: "VIEW_PAYSLIP",
+        entity_type: "payslip",
+        entity_id: payslip.payslip_number,
+        user_email: user?.email || undefined,
+        description: `Employee ${payslip.employee_name} viewed payslip ${payslip.payslip_number}`,
+        details: {
+          employee_id: payslip.employee_id,
+          payslip_number: payslip.payslip_number,
+        },
+      });
+    }
+  }, [payslip, user]);
+
+  // Delete Mutation
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      // 1. Delete binary PDF from Supabase Storage if storage path exists
+      if ((payslip as any)?.pdf_storage_path) {
+        try {
+          await deletePayslipPDF((payslip as any).pdf_storage_path);
+        } catch (storageErr) {
+          console.warn("Notice: storage cleanup on delete:", storageErr);
+        }
+      }
+
+      // 2. Delete database records
+      await supabase.from("payslips").delete().eq("id", id);
+      await supabase.from("payroll").delete().eq("id", id);
+
+      if (payslip) {
+        await logAuditEvent({
+          action: "DELETE_PAYSLIP",
+          entity_type: "payslip",
+          entity_id: payslip.payslip_number,
+          description: `Deleted payslip ${payslip.payslip_number} for ${payslip.employee_name}`,
+          details: {
+            id,
+            payslip_number: payslip.payslip_number,
+            employee_name: payslip.employee_name,
+            net_salary: payslip.net_salary,
+          },
+        });
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["payslips"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["reports"] });
+      toast.success("Payslip deleted successfully.");
+      navigate({ to: "/payslips" });
+    },
+    onError: (err: any) => {
+      toast.error("Failed to delete payslip: " + err.message);
+    },
+  });
+
+  const handleDownload = async () => {
+    if (!printRef.current || !payslip) return;
+    try {
+      setIsDownloading(true);
+      toast.info("Generating PDF and storing in Supabase Storage...");
+      const pdf = await generatePayslipPDF(printRef.current, `Payslip_${payslip.payslip_number}.pdf`);
+      const blob = pdf.output("blob");
+
+      // Upload binary to Supabase Storage
+      const dateParts = (payslip.salary_period_start || new Date().toISOString()).split("-");
+      const year = dateParts[0] || new Date().getFullYear();
+      const month = dateParts[1] || new Date().getMonth() + 1;
+
+      try {
+        const uploadRes = await uploadPayslipPDF(
+          blob,
+          year,
+          month,
+          payslip.employee_id,
+          payslip.payslip_number
+        );
+        if (uploadRes.path) {
+          await supabase.from("payslips").update({
+            pdf_storage_path: uploadRes.path,
+            pdf_generated_at: new Date().toISOString(),
+          } as any).eq("id", id);
+        }
+      } catch (uploadErr) {
+        console.warn("Storage upload notice:", uploadErr);
+      }
+
+      pdf.save(`Payslip_${payslip.payslip_number}.pdf`);
+      dispatchPayslipNotification({
+        action: "downloaded",
+        employeeName: payslip.employee_name,
+        employeeCode: payslip.employee_id,
+        payslipNumber: payslip.payslip_number,
+        period: payslip.salary_period_label,
+      });
+      await logAuditEvent({
+        action: "DOWNLOAD_PDF",
+        entity_type: "payslip",
+        entity_id: payslip.payslip_number,
+        description: `Exported PDF for payslip ${payslip.payslip_number} (${payslip.employee_name})`,
+      });
+      toast.success("PDF generated, stored in Supabase & downloaded.");
+    } catch (err: any) {
+      toast.error("Failed to download PDF: " + err.message);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  if (isLoading) {
+    return <div className="p-10 text-center text-muted-foreground">Loading payslip details…</div>;
+  }
+
+  if (!payslip) {
+    return (
+      <div className="p-10 text-center space-y-4">
+        <p className="text-muted-foreground">Payslip not found.</p>
+        <Button asChild variant="outline">
+          <Link to="/payslips">Back to Payslips</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  if (isEditing) {
+    return <PayslipCMS initialData={payslip} isEditing={true} />;
+  }
 
   return (
-    <div>
-      <div className="no-print mb-6 flex items-center justify-between gap-3">
-        <Button asChild variant="ghost">
+    <div className="space-y-6 max-w-5xl mx-auto pb-16">
+      {/* Top Action Bar */}
+      <div className="no-print flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+        <Button asChild variant="ghost" size="sm">
           <Link to="/payslips">
-            <ArrowLeft className="size-4" /> Back to payslips
+            <ArrowLeft className="size-4 mr-1.5" /> Back to Payslips
           </Link>
         </Button>
-        <Button onClick={() => window.print()}>
-          <Printer className="size-4" /> Print / Save as PDF
-        </Button>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+            <Edit3 className="size-4 mr-1.5" /> Edit Payslip
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleDownload} disabled={isDownloading}>
+            <Download className="size-4 mr-1.5" /> Download PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
+            <Printer className="size-4 mr-1.5" /> Print
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsDeleteDialogOpen(true)}
+            className="text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 className="size-4 mr-1.5" /> Delete
+          </Button>
+        </div>
       </div>
 
-      <div className="print-sheet mx-auto max-w-3xl rounded-lg border bg-card p-8 shadow-panel">
-        <header className="flex items-start justify-between border-b pb-4">
-          <div>
-            <h1 className="text-xl font-bold tracking-wide">
-              {settings?.company_name ?? "BLX REALTY PRIVATE LIMITED"}
-            </h1>
-            <p className="text-xs text-muted-foreground">{settings?.website}</p>
-          </div>
-          <div className="text-right text-xs">
-            <p className="font-semibold uppercase tracking-widest">Salary Slip</p>
-            <p className="num text-muted-foreground">{data.payslip_number}</p>
-            <p className="text-muted-foreground">
-              {monthLabel(data.period_month, data.period_year)}
-            </p>
-          </div>
-        </header>
-
-        <section className="grid gap-x-10 gap-y-1 py-4 md:grid-cols-2">
-          <Row label="Employee name" value={emp?.full_name ?? "—"} />
-          <Row label="Employee code" value={emp?.employee_code ?? "—"} />
-          <Row label="Designation" value={emp?.designation ?? "—"} />
-          <Row label="Department" value={emp?.department ?? "—"} />
-          <Row label="Date of joining" value={emp?.joining_date ?? "—"} />
-          <Row label="PAN" value={emp?.pan ?? "—"} />
-          <Row label="Bank" value={emp?.bank_name ?? "—"} />
-          <Row label="Account no." value={emp?.account_number ?? "—"} />
-          <Row label="Payment mode" value={data.payment_mode} />
-          <Row label="Total / payable days" value={`${data.total_days} / ${data.payable_days}`} />
-        </section>
-
-        <section className="grid gap-8 border-t pt-4 md:grid-cols-2">
-          <div>
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider">Earnings</h2>
-            <Row label="Gross salary" value={inr2(Number(data.gross_salary))} />
-            <Row label="Additional earnings" value={inr2(Number(data.additional_earnings))} />
-            <Row
-              label="Total earnings"
-              value={inr2(Number(data.gross_salary) + Number(data.additional_earnings))}
-            />
-          </div>
-          <div>
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider">Deductions</h2>
-            <Row
-              label={`Absent (${data.absent_days} days)`}
-              value={inr2(Number(data.absent_deduction))}
-            />
-            <Row
-              label={`Late arrivals (${data.late_minutes} min)`}
-              value={inr2(Number(data.late_deduction))}
-            />
-            <Row label="Other deductions" value={inr2(Number(data.additional_deductions))} />
-            <Row label="Total deductions" value={inr2(Number(data.total_deduction))} />
-          </div>
-        </section>
-
-        <section className="mt-6 flex items-center justify-between rounded-md bg-secondary px-5 py-4">
-          <span className="text-sm font-semibold uppercase tracking-wider">Net salary payable</span>
-          <span className="num text-xl font-bold">₹ {inr2(Number(data.net_salary))}</span>
-        </section>
-
-        <footer className="mt-10 flex items-end justify-between text-xs text-muted-foreground">
-          <p className="max-w-sm">
-            {settings?.payslip_footer ?? "This is a computer generated salary slip."}
-          </p>
-          <div className="text-center">
-            <div className="mb-1 h-10 w-40 border-b border-foreground/40" />
-            <p>{settings?.authorized_signatory ?? "Authorized Signatory"}</p>
-          </div>
-        </footer>
+      {/* Payslip Document Render Node */}
+      <div className="flex justify-center p-2 sm:p-6 bg-muted/20 rounded-xl border">
+        <PayslipDocument ref={printRef} data={payslip} />
       </div>
+
+      {/* Delete Confirmation Alert Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Payslip {payslip.payslip_number}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete the payslip for{" "}
+              <strong>{payslip.employee_name}</strong>? This action cannot be undone and will update
+              dashboard statistics.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteMutation.mutate()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Payslip
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

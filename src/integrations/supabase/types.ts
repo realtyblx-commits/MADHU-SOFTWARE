@@ -14,6 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
+      payslips: {
+        Row: {
+          id: string
+          payslip_number: string
+          employee_id: string
+          employee_name: string
+          salary_period_start: string
+          salary_period_end: string
+          salary_period_label: string | null
+          payment_mode: string
+          absent_days: number
+          late_minutes: number
+          office_timing: string
+          gross_salary: number
+          absent_deduction: number
+          late_deduction: number
+          total_deduction: number
+          net_salary: number
+          payment_status: string
+          employee_signature: string | null
+          authorized_signature: string | null
+          authorized_signatory_label: string | null
+          company_name: string | null
+          company_website: string | null
+          company_logo: string | null
+          status: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          payslip_number: string
+          employee_id: string
+          employee_name: string
+          salary_period_start: string
+          salary_period_end: string
+          salary_period_label?: string | null
+          payment_mode?: string
+          absent_days?: number
+          late_minutes?: number
+          office_timing?: string
+          gross_salary?: number
+          absent_deduction?: number
+          late_deduction?: number
+          total_deduction?: number
+          net_salary?: number
+          payment_status?: string
+          employee_signature?: string | null
+          authorized_signature?: string | null
+          authorized_signatory_label?: string | null
+          company_name?: string | null
+          company_website?: string | null
+          company_logo?: string | null
+          status?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          payslip_number?: string
+          employee_id?: string
+          employee_name?: string
+          salary_period_start?: string
+          salary_period_end?: string
+          salary_period_label?: string | null
+          payment_mode?: string
+          absent_days?: number
+          late_minutes?: number
+          office_timing?: string
+          gross_salary?: number
+          absent_deduction?: number
+          late_deduction?: number
+          total_deduction?: number
+          net_salary?: number
+          payment_status?: string
+          employee_signature?: string | null
+          authorized_signature?: string | null
+          authorized_signatory_label?: string | null
+          company_name?: string | null
+          company_website?: string | null
+          company_logo?: string | null
+          status?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       attendance: {
         Row: {
           attendance_date: string
@@ -72,31 +159,40 @@ export type Database = {
       }
       audit_logs: {
         Row: {
-          action: string
-          created_at: string
-          created_by: string | null
-          details: Json | null
-          entity: string
-          entity_id: string | null
           id: string
+          action: string
+          entity_type: string
+          entity_id: string | null
+          user_email: string
+          user_role: string | null
+          description: string
+          details: Json | null
+          ip_address: string | null
+          created_at: string
         }
         Insert: {
-          action: string
-          created_at?: string
-          created_by?: string | null
-          details?: Json | null
-          entity: string
-          entity_id?: string | null
           id?: string
+          action: string
+          entity_type: string
+          entity_id?: string | null
+          user_email: string
+          user_role?: string | null
+          description: string
+          details?: Json | null
+          ip_address?: string | null
+          created_at?: string
         }
         Update: {
-          action?: string
-          created_at?: string
-          created_by?: string | null
-          details?: Json | null
-          entity?: string
-          entity_id?: string | null
           id?: string
+          action?: string
+          entity_type?: string
+          entity_id?: string | null
+          user_email?: string
+          user_role?: string | null
+          description?: string
+          details?: Json | null
+          ip_address?: string | null
+          created_at?: string
         }
         Relationships: []
       }

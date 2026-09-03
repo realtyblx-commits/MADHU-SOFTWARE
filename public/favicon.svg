@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b132b" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FCD34D" />
+      <stop offset="50%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+    <linearGradient id="roofGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FDE68A" />
+      <stop offset="100%" stop-color="#F59E0B" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#000000" flood-opacity="0.4" />
+    </filter>
+  </defs>
+
+  <!-- Background rounded squircle -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#bgGrad)" stroke="#334155" stroke-width="1.5" />
+
+  <!-- Architectural Skyscraper Skyline Motif (BLX Realty) -->
+  <g filter="url(#shadow)">
+    <!-- Tower Left -->
+    <rect x="13" y="24" width="10" height="25" rx="1" fill="url(#goldGrad)" opacity="0.9" />
+    <polygon points="13,24 18,17 23,24" fill="url(#roofGrad)" />
+    <!-- Window accents Left -->
+    <rect x="16" y="28" width="4" height="2.5" rx="0.5" fill="#0b132b" opacity="0.65" />
+    <rect x="16" y="34" width="4" height="2.5" rx="0.5" fill="#0b132b" opacity="0.65" />
+    <rect x="16" y="40" width="4" height="2.5" rx="0.5" fill="#0b132b" opacity="0.65" />
+
+    <!-- Tower Center (Tallest) -->
+    <rect x="26" y="17" width="12" height="32" rx="1" fill="url(#goldGrad)" />
+    <polygon points="26,17 32,9 38,17" fill="url(#roofGrad)" />
+    <!-- Window accents Center -->
+    <rect x="29" y="22" width="6" height="2.5" rx="0.5" fill="#0b132b" opacity="0.65" />
+    <rect x="29" y="28" width="6" height="2.5" rx="0.5" fill="#0b132b" opacity="0.65" />
+    <rect x="29" y="34" width="6" height="2.5" rx="0.5" fill="#0b132b" opacity="0.65" />
+    <rect x="29" y="40" width="6" height="2.5" rx="0.5" fill="#0b132b" opacity="0.65" />
+
+    <!-- Tower Right -->
+    <rect x="41" y="28" width="10" height="21" rx="1" fill="url(#goldGrad)" opacity="0.9" />
+    <polygon points="41,28 46,21 51,28" fill="url(#roofGrad)" />
+    <!-- Window accents Right -->
+    <rect x="44" y="32" width="4" height="2.5" rx="0.5" fill="#0b132b" opacity="0.65" />
+    <rect x="44" y="38" width="4" height="2.5" rx="0.5" fill="#0b132b" opacity="0.65" />
+
+    <!-- Baseline foundation bar -->
+    <rect x="10" y="48.5" width="44" height="3" rx="1.5" fill="url(#goldGrad)" />
+  </g>
+</svg>

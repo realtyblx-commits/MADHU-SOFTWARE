@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { useEmployees } from "@/lib/queries";
 import { useAuth } from "@/hooks/use-auth";
 import { LEAVE_TYPES } from "@/lib/payroll";
+import { logAuditEvent } from "@/lib/audit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,6 +92,23 @@ function LeavePage() {
         total_days: days,
       } as never);
       if (error) throw error;
+
+      const emp = employees.find((e) => e.id === form.employee_id);
+      await logAuditEvent({
+        action: "LEAVE_REQUEST_CREATE",
+        entity_type: "leave",
+        entity_id: emp?.employee_code || form.employee_id,
+        description: `Leave requested by ${emp?.full_name || "Employee"} (${form.leave_type}, ${form.start_date} to ${form.end_date} - ${days} day${days > 1 ? "s" : ""})`,
+        details: {
+          employee_code: emp?.employee_code,
+          employee_name: emp?.full_name,
+          leave_type: form.leave_type,
+          start_date: form.start_date,
+          end_date: form.end_date,
+          total_days: days,
+          reason: form.reason,
+        },
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leaves"] });
@@ -104,6 +122,22 @@ function LeavePage() {
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const { error } = await supabase.from("leave_requests").update({ status }).eq("id", id);
       if (error) throw error;
+
+      const leave = leaves.find((l) => l.id === id);
+      const emp = employees.find((e) => e.id === leave?.employee_id);
+      await logAuditEvent({
+        action: status === "Approved" ? "LEAVE_REQUEST_APPROVE" : "LEAVE_REQUEST_REJECT",
+        entity_type: "leave",
+        entity_id: emp?.employee_code || id,
+        description: `Manager ${status.toLowerCase()} leave for ${emp?.full_name || "Employee"} (${leave?.leave_type || "Leave"}, ${leave?.start_date} to ${leave?.end_date})`,
+        details: {
+          leave_id: id,
+          status,
+          employee_name: emp?.full_name,
+          employee_code: emp?.employee_code,
+          leave_type: leave?.leave_type,
+        },
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leaves"] });

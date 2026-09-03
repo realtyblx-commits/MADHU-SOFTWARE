@@ -13,13 +13,17 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAttendanceRouteImport } from './routes/_authenticated/attendance'
+import { Route as AuthenticatedAuditLogsRouteImport } from './routes/_authenticated/audit-logs'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedEmployeesRouteImport } from './routes/_authenticated/employees'
 import { Route as AuthenticatedLeaveRouteImport } from './routes/_authenticated/leave'
+import { Route as AuthenticatedMyDocumentsRouteImport } from './routes/_authenticated/my-documents'
 import { Route as AuthenticatedPayrollRouteImport } from './routes/_authenticated/payroll'
+import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedPayslipsIndexRouteImport } from './routes/_authenticated/payslips/index'
 import { Route as AuthenticatedPayslipsIdRouteImport } from './routes/_authenticated/payslips/$id'
+import { Route as AuthenticatedPayslipsCreateRouteImport } from './routes/_authenticated/payslips/create'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,6 +44,11 @@ const AuthenticatedAttendanceRoute = AuthenticatedAttendanceRouteImport.update({
   path: '/attendance',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAuditLogsRoute = AuthenticatedAuditLogsRouteImport.update({
+  id: '/audit-logs',
+  path: '/audit-logs',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -55,9 +64,20 @@ const AuthenticatedLeaveRoute = AuthenticatedLeaveRouteImport.update({
   path: '/leave',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMyDocumentsRoute =
+  AuthenticatedMyDocumentsRouteImport.update({
+    id: '/my-documents',
+    path: '/my-documents',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPayrollRoute = AuthenticatedPayrollRouteImport.update({
   id: '/payroll',
   path: '/payroll',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
@@ -76,29 +96,43 @@ const AuthenticatedPayslipsIdRoute = AuthenticatedPayslipsIdRouteImport.update({
   path: '/payslips/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPayslipsCreateRoute =
+  AuthenticatedPayslipsCreateRouteImport.update({
+    id: '/payslips/create',
+    path: '/payslips/create',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/attendance': typeof AuthenticatedAttendanceRoute
+  '/audit-logs': typeof AuthenticatedAuditLogsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/employees': typeof AuthenticatedEmployeesRoute
   '/leave': typeof AuthenticatedLeaveRoute
+  '/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/payroll': typeof AuthenticatedPayrollRoute
+  '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/payslips/$id': typeof AuthenticatedPayslipsIdRoute
+  '/payslips/create': typeof AuthenticatedPayslipsCreateRoute
   '/payslips/': typeof AuthenticatedPayslipsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/attendance': typeof AuthenticatedAttendanceRoute
+  '/audit-logs': typeof AuthenticatedAuditLogsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/employees': typeof AuthenticatedEmployeesRoute
   '/leave': typeof AuthenticatedLeaveRoute
+  '/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/payroll': typeof AuthenticatedPayrollRoute
+  '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/payslips/$id': typeof AuthenticatedPayslipsIdRoute
+  '/payslips/create': typeof AuthenticatedPayslipsCreateRoute
   '/payslips': typeof AuthenticatedPayslipsIndexRoute
 }
 export interface FileRoutesById {
@@ -107,12 +141,16 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/attendance': typeof AuthenticatedAttendanceRoute
+  '/_authenticated/audit-logs': typeof AuthenticatedAuditLogsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/employees': typeof AuthenticatedEmployeesRoute
   '/_authenticated/leave': typeof AuthenticatedLeaveRoute
+  '/_authenticated/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/_authenticated/payroll': typeof AuthenticatedPayrollRoute
+  '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/payslips/$id': typeof AuthenticatedPayslipsIdRoute
+  '/_authenticated/payslips/create': typeof AuthenticatedPayslipsCreateRoute
   '/_authenticated/payslips/': typeof AuthenticatedPayslipsIndexRoute
 }
 export interface FileRouteTypes {
@@ -121,24 +159,32 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/attendance'
+    | '/audit-logs'
     | '/dashboard'
     | '/employees'
     | '/leave'
+    | '/my-documents'
     | '/payroll'
+    | '/reports'
     | '/settings'
     | '/payslips/$id'
+    | '/payslips/create'
     | '/payslips/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/attendance'
+    | '/audit-logs'
     | '/dashboard'
     | '/employees'
     | '/leave'
+    | '/my-documents'
     | '/payroll'
+    | '/reports'
     | '/settings'
     | '/payslips/$id'
+    | '/payslips/create'
     | '/payslips'
   id:
     | '__root__'
@@ -146,12 +192,16 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/attendance'
+    | '/_authenticated/audit-logs'
     | '/_authenticated/dashboard'
     | '/_authenticated/employees'
     | '/_authenticated/leave'
+    | '/_authenticated/my-documents'
     | '/_authenticated/payroll'
+    | '/_authenticated/reports'
     | '/_authenticated/settings'
     | '/_authenticated/payslips/$id'
+    | '/_authenticated/payslips/create'
     | '/_authenticated/payslips/'
   fileRoutesById: FileRoutesById
 }
@@ -191,6 +241,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAttendanceRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/audit-logs': {
+      id: '/_authenticated/audit-logs'
+      path: '/audit-logs'
+      fullPath: '/audit-logs'
+      preLoaderRoute: typeof AuthenticatedAuditLogsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -212,11 +269,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLeaveRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/my-documents': {
+      id: '/_authenticated/my-documents'
+      path: '/my-documents'
+      fullPath: '/my-documents'
+      preLoaderRoute: typeof AuthenticatedMyDocumentsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/payroll': {
       id: '/_authenticated/payroll'
       path: '/payroll'
       fullPath: '/payroll'
       preLoaderRoute: typeof AuthenticatedPayrollRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reports': {
+      id: '/_authenticated/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AuthenticatedReportsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings': {
@@ -240,28 +311,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPayslipsIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/payslips/create': {
+      id: '/_authenticated/payslips/create'
+      path: '/payslips/create'
+      fullPath: '/payslips/create'
+      preLoaderRoute: typeof AuthenticatedPayslipsCreateRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAttendanceRoute: typeof AuthenticatedAttendanceRoute
+  AuthenticatedAuditLogsRoute: typeof AuthenticatedAuditLogsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEmployeesRoute: typeof AuthenticatedEmployeesRoute
   AuthenticatedLeaveRoute: typeof AuthenticatedLeaveRoute
+  AuthenticatedMyDocumentsRoute: typeof AuthenticatedMyDocumentsRoute
   AuthenticatedPayrollRoute: typeof AuthenticatedPayrollRoute
+  AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedPayslipsIdRoute: typeof AuthenticatedPayslipsIdRoute
+  AuthenticatedPayslipsCreateRoute: typeof AuthenticatedPayslipsCreateRoute
   AuthenticatedPayslipsIndexRoute: typeof AuthenticatedPayslipsIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAttendanceRoute: AuthenticatedAttendanceRoute,
+  AuthenticatedAuditLogsRoute: AuthenticatedAuditLogsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEmployeesRoute: AuthenticatedEmployeesRoute,
   AuthenticatedLeaveRoute: AuthenticatedLeaveRoute,
+  AuthenticatedMyDocumentsRoute: AuthenticatedMyDocumentsRoute,
   AuthenticatedPayrollRoute: AuthenticatedPayrollRoute,
+  AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedPayslipsIdRoute: AuthenticatedPayslipsIdRoute,
+  AuthenticatedPayslipsCreateRoute: AuthenticatedPayslipsCreateRoute,
   AuthenticatedPayslipsIndexRoute: AuthenticatedPayslipsIndexRoute,
 }
 
@@ -276,3 +362,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
