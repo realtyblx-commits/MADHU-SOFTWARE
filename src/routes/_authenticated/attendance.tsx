@@ -16,6 +16,7 @@ import {
   formatTime,
   minutesToHoursLabel,
   type AttendanceRow,
+  type Employee,
 } from "@/lib/payroll";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +57,32 @@ function AttendancePage() {
   const { isManager, user } = useAuth();
   const { data: employees = [] } = useEmployees();
   const { data: settings } = useSettings();
+
+  const { data: directEmp, isLoading: isDirectEmpLoading } = useQuery({
+    queryKey: ["current-employee", user?.id, user?.email],
+    queryFn: async () => {
+      if (!user) return null;
+      // 1. Try by user_id
+      const { data: byId } = await supabase
+        .from("employees")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (byId) return byId as unknown as Employee;
+
+      // 2. Try by email
+      if (user.email) {
+        const { data: byEmail } = await supabase
+          .from("employees")
+          .select("*")
+          .ilike("email", user.email)
+          .maybeSingle();
+        if (byEmail) return byEmail as unknown as Employee;
+      }
+      return null;
+    },
+    enabled: !isManager && !!user,
+  });
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -296,6 +323,7 @@ function AttendancePage() {
   const currentEmp = useMemo(() => {
     if (isManager) return null;
     return (
+      directEmp ||
       employees.find(
         (e) =>
           (e.user_id && user?.id && e.user_id === user.id) ||
@@ -304,7 +332,7 @@ function AttendancePage() {
       employees[0] ||
       null
     );
-  }, [isManager, employees, user]);
+  }, [isManager, directEmp, employees, user]);
 
   const myMonthRows = useMemo(() => {
     if (!currentEmp) return [];
@@ -375,12 +403,21 @@ function AttendancePage() {
 
   const clockInMutation = useMutation({
     mutationFn: async () => {
-      if (!currentEmp) throw new Error("Employee profile not found");
+      let activeEmp = currentEmp;
+      if (!activeEmp && user?.id) {
+        const { data: fetchedEmp } = await supabase
+          .from("employees")
+          .select("*")
+          .or(`user_id.eq.${user.id},email.ilike.${user.email}`)
+          .maybeSingle();
+        activeEmp = (fetchedEmp as unknown as Employee) || null;
+      }
+      if (!activeEmp) throw new Error("Employee profile not found. Please contact Administrator.");
       const d = new Date();
       const timeStr = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
       const metrics = computeRowMetrics(timeStr, null);
       const payload = {
-        employee_id: currentEmp.id,
+        employee_id: activeEmp.id,
         attendance_date: todayStr,
         status: "Present",
         check_in: timeStr,
@@ -396,12 +433,12 @@ function AttendancePage() {
       await logAuditEvent({
         action: "ATTENDANCE_CHECK_IN",
         entity_type: "attendance",
-        entity_id: currentEmp.employee_code,
-        user_email: user?.email || currentEmp.email || undefined,
-        description: `Employee ${currentEmp.full_name} (${currentEmp.employee_code}) clocked in at ${formatTime(timeStr)}`,
+        entity_id: activeEmp.employee_code,
+        user_email: user?.email || activeEmp.email || undefined,
+        description: `Employee ${activeEmp.full_name} (${activeEmp.employee_code}) clocked in at ${formatTime(timeStr)}`,
         details: {
-          employee_code: currentEmp.employee_code,
-          employee_name: currentEmp.full_name,
+          employee_code: activeEmp.employee_code,
+          employee_name: activeEmp.full_name,
           time: timeStr,
           date: todayStr,
           late_minutes: metrics.late_minutes,
@@ -420,7 +457,16 @@ function AttendancePage() {
 
   const clockOutMutation = useMutation({
     mutationFn: async () => {
-      if (!currentEmp || !todayRecord) throw new Error("No check-in record found for today");
+      let activeEmp = currentEmp;
+      if (!activeEmp && user?.id) {
+        const { data: fetchedEmp } = await supabase
+          .from("employees")
+          .select("*")
+          .or(`user_id.eq.${user.id},email.ilike.${user.email}`)
+          .maybeSingle();
+        activeEmp = (fetchedEmp as unknown as Employee) || null;
+      }
+      if (!activeEmp || !todayRecord) throw new Error("No check-in record found for today");
       const d = new Date();
       const timeStr = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
       const metrics = computeRowMetrics(todayRecord.check_in, timeStr);
@@ -438,12 +484,12 @@ function AttendancePage() {
       await logAuditEvent({
         action: "ATTENDANCE_CHECK_OUT",
         entity_type: "attendance",
-        entity_id: currentEmp.employee_code,
-        user_email: user?.email || currentEmp.email || undefined,
-        description: `Employee ${currentEmp.full_name} (${currentEmp.employee_code}) clocked out at ${formatTime(timeStr)} (${working_hours}h worked)`,
+        entity_id: activeEmp.employee_code,
+        user_email: user?.email || activeEmp.email || undefined,
+        description: `Employee ${activeEmp.full_name} (${activeEmp.employee_code}) clocked out at ${formatTime(timeStr)} (${working_hours}h worked)`,
         details: {
-          employee_code: currentEmp.employee_code,
-          employee_name: currentEmp.full_name,
+          employee_code: activeEmp.employee_code,
+          employee_name: activeEmp.full_name,
           time: timeStr,
           date: todayStr,
           working_hours,
@@ -506,15 +552,15 @@ function AttendancePage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border bg-card/60 backdrop-blur-sm shadow-sm">
           <div className="flex items-center gap-3">
             <div className="size-11 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 flex items-center justify-center font-bold text-base shadow-sm">
-              {currentEmp?.full_name?.slice(0, 2).toUpperCase() || "ME"}
+              {currentEmp?.full_name?.slice(0, 2).toUpperCase() || (user?.email?.slice(0, 2).toUpperCase() || "ME")}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <p className="font-semibold text-base text-foreground">
-                  {currentEmp?.full_name || "Employee"}
+                  {currentEmp?.full_name || (isDirectEmpLoading ? "Loading profile..." : (user?.user_metadata?.["full_name"] || "Employee"))}
                 </p>
                 <Badge variant="outline" className="font-mono text-xs">
-                  {currentEmp?.employee_code || "BLX26-???"}
+                  {currentEmp?.employee_code || user?.user_metadata?.["employee_code"] || "BLX26-001"}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground">

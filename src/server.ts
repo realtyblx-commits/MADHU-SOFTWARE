@@ -161,6 +161,21 @@ export default {
               userId = newUser.user.id;
             }
 
+            // Automatically link user_id and normalized lowercase email in employees table
+            if (userId) {
+              if (employee_code) {
+                await adminClient
+                  .from("employees")
+                  .update({ user_id: userId, email: email.trim().toLowerCase() })
+                  .eq("employee_code", employee_code);
+              } else {
+                await adminClient
+                  .from("employees")
+                  .update({ user_id: userId, email: email.trim().toLowerCase() })
+                  .ilike("email", email.trim());
+              }
+            }
+
             return new Response(JSON.stringify({ ok: true, user_id: userId }), {
               status: 200,
               headers: {
@@ -175,6 +190,58 @@ export default {
                 "content-type": "application/json",
                 "access-control-allow-origin": "*",
               },
+            });
+          }
+        }
+      }
+
+      if (url.pathname === "/api/auth/sync-employee") {
+        if (request.method === "OPTIONS") {
+          return new Response(null, {
+            status: 204,
+            headers: {
+              "access-control-allow-origin": "*",
+              "access-control-allow-methods": "POST, OPTIONS",
+              "access-control-allow-headers": "content-type, authorization",
+            },
+          });
+        }
+
+        if (request.method === "POST") {
+          try {
+            const body = (await request.json()) as any;
+            const { user_id, email } = body || {};
+            if (user_id && email) {
+              const { createClient } = await import("@supabase/supabase-js");
+              const supabaseUrl =
+                (env as any)?.SUPABASE_URL ||
+                (env as any)?.VITE_SUPABASE_URL ||
+                process.env["SUPABASE_URL"] ||
+                process.env["VITE_SUPABASE_URL"] ||
+                "https://quqlutfkkydruoflbuil.supabase.co";
+
+              const serviceKey =
+                (env as any)?.SUPABASE_SERVICE_ROLE_KEY ||
+                process.env["SUPABASE_SERVICE_ROLE_KEY"] ||
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1cWx1dGZra3lkcnVvZmxidWlsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4ODM5OTk5NiwiZXhwIjoyMTAzOTc1OTk2fQ.OxF0usSZmA5K23jUNqjGJYHDD0dn4YTqCfyN8Nf-hkw";
+
+              const adminClient = createClient(supabaseUrl, serviceKey, {
+                auth: { autoRefreshToken: false, persistSession: false },
+              });
+
+              await adminClient
+                .from("employees")
+                .update({ user_id, email: email.trim().toLowerCase() })
+                .ilike("email", email.trim());
+            }
+            return new Response(JSON.stringify({ ok: true }), {
+              status: 200,
+              headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
+            });
+          } catch (err: any) {
+            return new Response(JSON.stringify({ error: err.message }), {
+              status: 500,
+              headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
             });
           }
         }

@@ -20,6 +20,16 @@ export function useAuth() {
       setSession(data.session);
       setUser(data.session?.user ?? null);
       setLoading(false);
+      if (data.session?.user?.email && !data.session.user.email.includes("admin")) {
+        fetch("/api/auth/sync-employee", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: data.session.user.id,
+            email: data.session.user.email,
+          }),
+        }).catch(() => {});
+      }
     });
 
     return () => sub.subscription.unsubscribe();
