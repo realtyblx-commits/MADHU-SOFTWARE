@@ -208,8 +208,8 @@ function DashboardPage() {
       net += Number(p.net_salary) || 0;
       absDed += Number(p.absent_deduction) || 0;
       lateDed += Number(p.late_deduction) || 0;
-      absDays += Number(p.absent_days) || 0;
-      lateMins += Number(p.late_minutes) || 0;
+      absDays += Number((p as any).absent_days_snapshot ?? p.absent_days) || 0;
+      lateMins += Number((p as any).late_minutes_snapshot ?? p.late_minutes) || 0;
     });
 
     // Also include any loose attendance entries not yet processed into payslips

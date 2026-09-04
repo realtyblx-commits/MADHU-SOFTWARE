@@ -279,28 +279,72 @@ function AttendancePage() {
   const getRowData = (empId: string) => {
     const serverRow = byEmployee.get(empId);
     const edits = localEdits[empId];
+    
+    // Check-in & Check-out: Keep strictly empty until recorded or edited
     const check_in =
       edits?.check_in !== undefined ? edits.check_in : (serverRow?.check_in?.slice(0, 5) ?? "");
     const check_out =
       edits?.check_out !== undefined ? edits.check_out : (serverRow?.check_out?.slice(0, 5) ?? "");
-    const status = edits?.status !== undefined ? edits.status : (serverRow?.status ?? "Present");
+
+    const isToday = date === todayStr;
+    const now = new Date();
+    const currentTotalMins = now.getHours() * 60 + now.getMinutes();
+
+    const [startH, startM] = (settings?.office_start ?? "10:30").split(":").map(Number);
+    const graceMins = settings?.grace_minutes ?? 15;
+    const thresholdMins = (startH || 10) * 60 + (startM || 30) + graceMins; // 10:45 AM = 645 mins
+
+    let status = edits?.status !== undefined ? edits.status : (serverRow?.status ?? "");
+    let late_minutes = serverRow?.late_minutes ?? 0;
+    let isPendingLate = false;
+
+    if (check_in) {
+      // 1. Check-in exists: compute official metrics
+      const metrics = computeRowMetrics(check_in, check_out);
+      late_minutes = metrics.late_minutes;
+      if (!status) {
+        status = late_minutes > 0 ? "Late" : "Present";
+      }
+    } else {
+      // 2. Check-in does NOT exist yet:
+      if (!status) {
+        if (isToday) {
+          if (currentTotalMins > thresholdMins) {
+            // After 10:45 AM today: employee is late as of now
+            status = "Late";
+            late_minutes = currentTotalMins - thresholdMins;
+            isPendingLate = true;
+          } else {
+            status = "Not marked";
+          }
+        } else if (date < todayStr) {
+          status = "Absent";
+        } else {
+          status = "Not marked";
+        }
+      } else if (status === "Late" && isToday && !serverRow?.check_in) {
+        if (currentTotalMins > thresholdMins) {
+          late_minutes = currentTotalMins - thresholdMins;
+          isPendingLate = true;
+        }
+      }
+    }
 
     const metrics = computeRowMetrics(check_in, check_out);
     const working_hours =
       metrics.working_hours > 0
         ? metrics.working_hours
-        : status === "Present"
+        : check_in && check_out
           ? 8
-          : status === "Half Day"
-            ? 4
-            : 0;
+          : 0;
 
     return {
       check_in,
       check_out,
-      status,
+      status: status || "Not marked",
       working_hours,
-      late_minutes: metrics.late_minutes,
+      late_minutes,
+      isPendingLate,
     };
   };
 
@@ -982,7 +1026,7 @@ function AttendancePage() {
                             <TimeInput12
                               disabled={!isManager}
                               defaultPeriod="AM"
-                              placeholder="10:30"
+                              placeholder="—"
                               value={rowData.check_in}
                               onChange={(val) => {
                                 setLocalEdits((prev) => ({
@@ -997,7 +1041,7 @@ function AttendancePage() {
                             <TimeInput12
                               disabled={!isManager}
                               defaultPeriod="PM"
-                              placeholder="06:30"
+                              placeholder="—"
                               value={rowData.check_out}
                               onChange={(val) => {
                                 setLocalEdits((prev) => ({
@@ -1024,6 +1068,7 @@ function AttendancePage() {
                                 <SelectValue placeholder="Not marked" />
                               </SelectTrigger>
                               <SelectContent>
+                                <SelectItem value="Not marked">Not marked</SelectItem>
                                 {ATTENDANCE_STATUSES.map((s) => (
                                   <SelectItem key={s} value={s}>
                                     {s}
@@ -1037,9 +1082,27 @@ function AttendancePage() {
                           </TableCell>
                           <TableCell className="text-right">
                             {rowData.late_minutes > 0 ? (
-                              <Badge variant="destructive" className="font-semibold">
-                                {rowData.late_minutes}m late
-                              </Badge>
+                              <div>
+                                <Badge
+                                  variant="destructive"
+                                  className={`font-semibold text-xs ${
+                                    rowData.isPendingLate
+                                      ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                                      : ""
+                                  }`}
+                                >
+                                  {rowData.late_minutes}m late
+                                </Badge>
+                                {rowData.isPendingLate && (
+                                  <span className="text-[10px] text-amber-400/90 block mt-0.5 whitespace-nowrap">
+                                    as of now (pending)
+                                  </span>
+                                )}
+                              </div>
+                            ) : rowData.check_in ? (
+                              <span className="inline-flex items-center text-emerald-400 text-xs gap-1 font-medium">
+                                <CheckCheck className="size-3.5" /> On time
+                              </span>
                             ) : (
                               <span className="text-muted-foreground">—</span>
                             )}

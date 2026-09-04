@@ -91,7 +91,17 @@ function ReportsPage() {
     queryKey: ["reports_payslips"],
     queryFn: async () => {
       const psRes = await supabase.from("payslips").select("*");
-      const psList = (psRes.data || []) as unknown as PayslipRecord[];
+      const psList = ((psRes.data || []) as any[]).map((row) => ({
+        ...row,
+        employee_id: row.employee_id_snapshot || row.employee_id,
+        employee_name: row.employee_name_snapshot || row.employee_name || "Employee",
+        absent_days: Number(row.absent_days_snapshot ?? row.absent_days ?? 0),
+        late_minutes: Number(row.late_minutes_snapshot ?? row.late_minutes ?? 0),
+        payment_mode: row.payment_mode_snapshot || row.payment_mode || "Bank Transfer",
+        office_timing: row.office_timing_snapshot || row.office_timing || "10:30 AM - 6:30 PM",
+        designation: row.designation_snapshot || row.designation,
+        department: row.department_snapshot || row.department,
+      })) as unknown as PayslipRecord[];
       const prRes = await supabase.from("payroll").select("*, employees(*)");
       const prData = (prRes.data || []) as any[];
 

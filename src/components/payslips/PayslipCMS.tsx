@@ -224,16 +224,53 @@ export function PayslipCMS({ initialData, isEditing = false }: PayslipCMSProps) 
       if (!form.payslip_number.trim()) throw new Error("Payslip Number is required.");
       if (form.gross_salary <= 0) throw new Error("Gross Salary must be greater than 0.");
 
-      const payload = {
-        ...form,
+      // Find actual employee record to resolve UUID foreign key
+      const emp = employees.find(
+        (e) =>
+          e.id === form.employee_id ||
+          e.employee_code === form.employee_id ||
+          (e as any).employee_id === form.employee_id ||
+          (form.employee_name && e.full_name?.toLowerCase() === form.employee_name?.toLowerCase())
+      );
+
+      const isUuid = (str?: string | null) =>
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || ""));
+
+      const empUuid = emp?.id || (isUuid(form.employee_id) ? form.employee_id : employees[0]?.id);
+      if (!empUuid) {
+        throw new Error("Valid employee record could not be found in database.");
+      }
+
+      // Map to exact Supabase PostgreSQL payslips table schema
+      const dbPayload = {
+        employee_id: empUuid,
+        payslip_number: form.payslip_number,
+        salary_period_start: form.salary_period_start,
+        salary_period_end: form.salary_period_end,
+        salary_period_label: form.salary_period_label || null,
+        employee_name_snapshot: form.employee_name,
+        employee_id_snapshot: form.employee_id,
+        designation_snapshot: emp?.designation || null,
+        department_snapshot: emp?.department || null,
+        payment_mode_snapshot: form.payment_mode || "Bank Transfer",
+        office_timing_snapshot: form.office_timing || null,
+        absent_days_snapshot: Number(form.absent_days ?? 0),
+        late_minutes_snapshot: Number(form.late_minutes ?? 0),
+        gross_salary: Number(form.gross_salary ?? 0),
+        absent_deduction: Number(form.absent_deduction ?? 0),
+        late_deduction: Number(form.late_deduction ?? 0),
+        total_deduction: Number(form.total_deduction ?? 0),
+        net_salary: Number(form.net_salary ?? 0),
+        payment_status: form.payment_status || "Paid",
+        status: form.status || "Published",
         updated_at: new Date().toISOString(),
       };
 
-      if (isEditing) {
-        const { error } = await supabase.from("payslips").update(payload).eq("id", form.id);
+      if (isEditing && isUuid(form.id)) {
+        const { error } = await supabase.from("payslips").update(dbPayload as any).eq("id", form.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("payslips").insert(payload);
+        const { error } = await supabase.from("payslips").insert(dbPayload as any);
         if (error) throw error;
       }
 
@@ -252,7 +289,7 @@ export function PayslipCMS({ initialData, isEditing = false }: PayslipCMSProps) 
         },
       });
 
-      return payload;
+      return dbPayload;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payslips"] });

@@ -26,8 +26,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { NotificationCenter } from "@/components/layout/NotificationCenter";
-import { syncLateAttendanceNotifications } from "@/lib/notifications";
 import { useEmployees } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
@@ -112,23 +110,7 @@ export function AppShell() {
   const { data: employees = [] } = useEmployees();
 
   // Automatically detect and sync any late check-ins (>10:45 AM) to notification feed
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  useEffect(() => {
-    async function syncTodayLate() {
-      try {
-        const { data: dayAtt } = await supabase
-          .from("attendance")
-          .select("*")
-          .eq("attendance_date", today);
-        if (dayAtt && dayAtt.length > 0 && employees.length > 0) {
-          syncLateAttendanceNotifications(dayAtt as any, employees);
-        }
-      } catch (_) {}
-    }
-    if (employees.length > 0) {
-      syncTodayLate();
-    }
-  }, [today, employees]);
+
 
   const handleGlobalSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && globalSearch.trim()) {
@@ -260,8 +242,7 @@ export function AppShell() {
               />
             </div>
 
-            {/* Interactive Bell Notification Center with 10:45 AM late arrival mobile alerts */}
-            <NotificationCenter />
+
 
             <Button
               variant="ghost"

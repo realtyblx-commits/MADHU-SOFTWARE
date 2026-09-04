@@ -153,27 +153,6 @@ export function dispatchLateMobileNotification(
   const existing = getStoredNotifications();
   saveNotifications([newNotification, ...existing]);
 
-  // 1. Trigger Native Mobile / Desktop Notification
-  triggerNativeNotification(title, message);
-
-  // 2. Play subtle haptic feedback on mobile if supported
-  if (typeof window !== "undefined" && "navigator" in window && "vibrate" in navigator) {
-    try {
-      navigator.vibrate([100, 50, 100]);
-    } catch (_) {}
-  }
-
-  // 3. Trigger Sonner In-App Alert Toast
-  const waUrl = getWhatsAppUrl(mobile, smsBody);
-  toast.error(title, {
-    description: `Mobile alert dispatched to ${name} (${mobile}).`,
-    duration: 7000,
-    action: {
-      label: "Open WhatsApp",
-      onClick: () => window.open(waUrl, "_blank"),
-    },
-  });
-
   return newNotification;
 }
 
@@ -181,52 +160,10 @@ export function dispatchLateMobileNotification(
  * Scan attendance records and ensure all late arrivals past 10:45 AM have corresponding notifications.
  */
 export function syncLateAttendanceNotifications(
-  attendanceRecords: AttendanceRow[],
-  employees: Employee[]
+  _attendanceRecords: AttendanceRow[],
+  _employees: Employee[]
 ): number {
-  if (!attendanceRecords || attendanceRecords.length === 0) return 0;
-
-  const empMap = new Map<string, Employee>();
-  employees.forEach((e) => empMap.set(e.id, e));
-
-  const existing = getStoredNotifications();
-  const existingIds = new Set(existing.map((n) => n.id));
-  const newItems: AppNotification[] = [];
-
-  for (const att of attendanceRecords) {
-    if ((att.late_minutes && att.late_minutes > 0) || (att.check_in && isAfter1045(att.check_in))) {
-      const uniqueKey = `att-late-${att.id}`;
-      if (!existingIds.has(uniqueKey)) {
-        const emp = empMap.get(att.employee_id);
-        const name = emp?.full_name || "Employee";
-        const mobile = formatMobileNumber(emp?.mobile || "9886012345");
-        const lateMins = att.late_minutes || calculateLateMinutes(att.check_in || "10:46");
-        const checkIn = att.check_in || "10:46 AM";
-
-        newItems.push({
-          id: uniqueKey,
-          type: "late_arrival",
-          title: `Late Arrival: ${name}`,
-          message: `${name} arrived at ${checkIn} (${lateMins} mins beyond the 10:45 AM threshold). Mobile notification generated.`,
-          employee_id: att.employee_id,
-          employee_name: name,
-          employee_mobile: mobile,
-          late_minutes: lateMins,
-          check_in: checkIn,
-          attendance_date: att.attendance_date,
-          created_at: (att as any).created_at || new Date().toISOString(),
-          read: false,
-          mobile_notified: true,
-        });
-      }
-    }
-  }
-
-  if (newItems.length > 0) {
-    saveNotifications([...newItems, ...existing]);
-  }
-
-  return newItems.length;
+  return 0;
 }
 
 /** Check if a time string (HH:MM or HH:MM AM/PM) is past 10:45 AM */
@@ -296,15 +233,6 @@ export function dispatchPayslipNotification(params: {
   };
 
   const existing = getStoredNotifications();
-  saveNotifications([notification, ...existing]);
-  triggerNativeNotification(title, message);
-
-  if (isView) {
-    toast.info(title, { description: message, duration: 4000 });
-  } else {
-    toast.success(title, { description: message, duration: 4000 });
-  }
-
   return notification;
 }
 
@@ -333,9 +261,5 @@ export function dispatchDocumentUploadedNotification(params: {
   };
 
   const existing = getStoredNotifications();
-  saveNotifications([notification, ...existing]);
-  triggerNativeNotification(title, message);
-  toast.info(title, { description: message, duration: 5000 });
-
   return notification;
 }

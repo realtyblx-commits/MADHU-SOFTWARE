@@ -41,9 +41,20 @@ function PayslipDetailPage() {
   const { data: payslip, isLoading } = useQuery<PayslipRecord | null>({
     queryKey: ["payslip", id],
     queryFn: async () => {
-      // Check in payslips table first
       const { data: ps } = await supabase.from("payslips").select("*").eq("id", id).maybeSingle();
-      if (ps) return ps as unknown as PayslipRecord;
+      if (ps) {
+        return {
+          ...ps,
+          employee_id: (ps as any).employee_id_snapshot || ps.employee_id,
+          employee_name: (ps as any).employee_name_snapshot || ps.employee_name || "Employee",
+          absent_days: Number((ps as any).absent_days_snapshot ?? ps.absent_days ?? 0),
+          late_minutes: Number((ps as any).late_minutes_snapshot ?? ps.late_minutes ?? 0),
+          payment_mode: (ps as any).payment_mode_snapshot || ps.payment_mode || "Bank Transfer",
+          office_timing: (ps as any).office_timing_snapshot || ps.office_timing || "10:30 AM - 6:30 PM",
+          designation: (ps as any).designation_snapshot || (ps as any).designation,
+          department: (ps as any).department_snapshot || (ps as any).department,
+        } as unknown as PayslipRecord;
+      }
 
       // Fallback: check payroll table
       const { data: pr } = await supabase

@@ -15,6 +15,7 @@ export const MONTHS = [
 
 export const ATTENDANCE_STATUSES = [
   "Present",
+  "Late",
   "Absent",
   "Half Day",
   "Paid Leave",
