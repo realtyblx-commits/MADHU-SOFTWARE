@@ -35,7 +35,7 @@ function supabaseAdminPlugin() {
           const url =
             process.env["SUPABASE_URL"] ||
             process.env["VITE_SUPABASE_URL"] ||
-            "https://quqlutfkkydruoflbuil.supabase.co";
+            "https://jyxhhefesovztegtzrnb.supabase.co";
           const anonKey = process.env["VITE_SUPABASE_ANON_KEY"];
 
           if (anonKey) {
@@ -96,7 +96,7 @@ function supabaseAdminPlugin() {
               const url =
                 process.env["SUPABASE_URL"] ||
                 process.env["VITE_SUPABASE_URL"] ||
-                "https://quqlutfkkydruoflbuil.supabase.co";
+                "https://jyxhhefesovztegtzrnb.supabase.co";
               const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
               if (!serviceKey) {
