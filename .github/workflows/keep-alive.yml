@@ -17,7 +17,7 @@ jobs:
       - name: Perform Lightweight Read-Only Health Check
         env:
           APP_HEALTH_URL: ${{ secrets.APP_HEALTH_URL }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://jyxhhefesovztegtzrnb.supabase.co' }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://eccoqnsmbebmumxuhhkv.supabase.co' }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           echo "Starting scheduled low-frequency health check..."

@@ -35,7 +35,7 @@ function supabaseAdminPlugin() {
           const url =
             process.env["SUPABASE_URL"] ||
             process.env["VITE_SUPABASE_URL"] ||
-            "https://jyxhhefesovztegtzrnb.supabase.co";
+            "https://eccoqnsmbebmumxuhhkv.supabase.co";
           const anonKey = process.env["VITE_SUPABASE_ANON_KEY"];
 
           if (anonKey) {
@@ -96,7 +96,7 @@ function supabaseAdminPlugin() {
               const url =
                 process.env["SUPABASE_URL"] ||
                 process.env["VITE_SUPABASE_URL"] ||
-                "https://jyxhhefesovztegtzrnb.supabase.co";
+                "https://eccoqnsmbebmumxuhhkv.supabase.co";
               const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
               if (!serviceKey) {
@@ -135,6 +135,56 @@ function supabaseAdminPlugin() {
 
               res.setHeader("Content-Type", "application/json");
               res.end(JSON.stringify({ ok: true, user_id: userId }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.setHeader("Content-Type", "application/json");
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+          return;
+        }
+      });
+
+      // Link auth user → employees.user_id after sign-in (dev parity with src/server.ts)
+      server.middlewares.use("/api/auth/sync-employee", (req: any, res: any) => {
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+        if (req.method === "OPTIONS") {
+          res.statusCode = 204;
+          res.end();
+          return;
+        }
+
+        if (req.method === "POST") {
+          let body = "";
+          req.on("data", (chunk: any) => {
+            body += chunk;
+          });
+          req.on("end", async () => {
+            try {
+              const { user_id, email } = JSON.parse(body || "{}");
+              if (user_id && email) {
+                const { createClient } = await import("@supabase/supabase-js");
+                const url =
+                  process.env["SUPABASE_URL"] ||
+                  process.env["VITE_SUPABASE_URL"] ||
+                  "https://eccoqnsmbebmumxuhhkv.supabase.co";
+                const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+                if (!serviceKey) {
+                  throw new Error("SUPABASE_SERVICE_ROLE_KEY is not defined in server environment");
+                }
+                const adminClient = createClient(url, serviceKey, {
+                  auth: { autoRefreshToken: false, persistSession: false },
+                });
+                await adminClient
+                  .from("employees")
+                  .update({ user_id, email: email.trim().toLowerCase() })
+                  .ilike("email", email.trim());
+              }
+              res.setHeader("Content-Type", "application/json");
+              res.end(JSON.stringify({ ok: true }));
             } catch (err: any) {
               res.statusCode = 500;
               res.setHeader("Content-Type", "application/json");

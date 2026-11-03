@@ -1,11 +1,22 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ShieldCheck, Lock } from "lucide-react";
+import { ShieldCheck, Lock, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { logAuditEvent } from "@/lib/audit";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { RubeGoldbergMachine } from "@/components/auth/RubeGoldbergMachine";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -28,14 +39,27 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetBusy, setResetBusy] = useState(false);
 
-  // Auto redirect if already logged in
+  // Auto redirect if already logged in (skip recovery sessions — those go to reset page)
   useEffect(() => {
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    if (hash.includes("type=recovery")) {
+      navigate({ to: "/reset-password" });
+      return;
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/dashboard" });
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session) navigate({ to: "/dashboard" });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        navigate({ to: "/reset-password" });
+        return;
+      }
+      if (session && event !== "TOKEN_REFRESHED") navigate({ to: "/dashboard" });
     });
     return () => sub.subscription.unsubscribe();
   }, [navigate]);
@@ -71,6 +95,28 @@ function AuthPage() {
       toast.error(message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const sendResetLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const target = resetEmail.trim() || email.trim();
+    if (!target) {
+      toast.error("Enter the email address for your account.");
+      return;
+    }
+
+    setResetBusy(true);
+    try {
+      const redirectTo = `${window.location.origin}/reset-password`;
+      const { error } = await supabase.auth.resetPasswordForEmail(target, { redirectTo });
+      if (error) throw error;
+      toast.success(`Password reset link sent to ${target}. Check your inbox.`);
+      setResetOpen(false);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to send reset email");
+    } finally {
+      setResetBusy(false);
     }
   };
 
@@ -146,11 +192,10 @@ function AuthPage() {
         <div className="flex items-center gap-4">
           <button
             type="button"
-            onClick={() =>
-              toast.info(
-                "Please contact your BLX Realty HR administrator to reset your credentials."
-              )
-            }
+            onClick={() => {
+              setResetEmail(email.trim());
+              setResetOpen(true);
+            }}
             className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors"
           >
             Forgot password?
@@ -158,6 +203,43 @@ function AuthPage() {
           <span>&copy; {new Date().getFullYear()} BLX Realty Private Limited</span>
         </div>
       </footer>
+
+      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="size-5 text-blue-500" />
+              Reset password
+            </DialogTitle>
+            <DialogDescription>
+              Enter your account email. We&apos;ll send a secure link to set a new password.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={sendResetLink} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email">Email</Label>
+              <Input
+                id="reset-email"
+                name="reset-email"
+                type="email"
+                autoComplete="email"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                placeholder="you@theblxrealty.com"
+                required
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button type="button" variant="outline" onClick={() => setResetOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={resetBusy}>
+                {resetBusy ? "Sending…" : "Send reset link"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

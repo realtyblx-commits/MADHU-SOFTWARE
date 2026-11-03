@@ -64,7 +64,7 @@ export default {
           const supabaseUrl =
             (env as any)?.VITE_SUPABASE_URL ||
             process.env["VITE_SUPABASE_URL"] ||
-            "https://jyxhhefesovztegtzrnb.supabase.co";
+            "https://eccoqnsmbebmumxuhhkv.supabase.co";
           const anonKey = (env as any)?.VITE_SUPABASE_ANON_KEY || process.env["VITE_SUPABASE_ANON_KEY"];
           if (anonKey) {
             const probe = await fetch(`${supabaseUrl}/rest/v1/company_settings?select=id&limit=1`, {
@@ -124,12 +124,12 @@ export default {
               (env as any)?.VITE_SUPABASE_URL ||
               process.env["SUPABASE_URL"] ||
               process.env["VITE_SUPABASE_URL"] ||
-              "https://jyxhhefesovztegtzrnb.supabase.co";
+              "https://eccoqnsmbebmumxuhhkv.supabase.co";
 
             const serviceKey =
               (env as any)?.SUPABASE_SERVICE_ROLE_KEY ||
               process.env["SUPABASE_SERVICE_ROLE_KEY"] ||
-              "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5eGhoZWZlc292enRlZ3R6cm5iIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4ODg5MzQzNiwiZXhwIjoyMTA0NDY5NDM2fQ.1_58Un0Ekk8Tfb2mFGATpZlsFv6whJkSOm_9smiPocw";
+              "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVjY29xbnNtYmVibXVteHVoaGt2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MzY3OTI0NiwiZXhwIjoyMTA5MjU1MjQ2fQ.oIbyuNO1XUSBh93YYScadmaUXnDAxi_-UAoejyDF4Vc";
 
             const adminClient = createClient(supabaseUrl, serviceKey, {
               auth: { autoRefreshToken: false, persistSession: false },
@@ -218,12 +218,12 @@ export default {
                 (env as any)?.VITE_SUPABASE_URL ||
                 process.env["SUPABASE_URL"] ||
                 process.env["VITE_SUPABASE_URL"] ||
-                "https://jyxhhefesovztegtzrnb.supabase.co";
+                "https://eccoqnsmbebmumxuhhkv.supabase.co";
 
               const serviceKey =
                 (env as any)?.SUPABASE_SERVICE_ROLE_KEY ||
                 process.env["SUPABASE_SERVICE_ROLE_KEY"] ||
-                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5eGhoZWZlc292enRlZ3R6cm5iIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4ODg5MzQzNiwiZXhwIjoyMTA0NDY5NDM2fQ.1_58Un0Ekk8Tfb2mFGATpZlsFv6whJkSOm_9smiPocw";
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVjY29xbnNtYmVibXVteHVoaGt2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MzY3OTI0NiwiZXhwIjoyMTA5MjU1MjQ2fQ.oIbyuNO1XUSBh93YYScadmaUXnDAxi_-UAoejyDF4Vc";
 
               const adminClient = createClient(supabaseUrl, serviceKey, {
                 auth: { autoRefreshToken: false, persistSession: false },

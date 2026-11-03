@@ -1,6 +1,6 @@
 # Supabase Free Plan Availability, Keep-Alive & Backup SOP
 **Project:** BLX Realty Payroll Suite  
-**Database Project ID:** `jyxhhefesovztegtzrnb`  
+**Database Project ID:** `eccoqnsmbebmumxuhhkv`  
 **Hosting Environment:** Supabase Free Tier  
 
 ---
@@ -56,13 +56,13 @@ A workflow is pre-configured at [`.github/workflows/keep-alive.yml`](../.github/
 - **Schedule:** Runs every 3 days at 06:00 UTC (`cron: '0 6 */3 * *'`).
 - **Secrets to configure (in GitHub Repo → Settings → Secrets & Variables → Actions):**
   - `SUPABASE_ANON_KEY`: Your project publishable anon key.
-  - `SUPABASE_URL`: `https://jyxhhefesovztegtzrnb.supabase.co` (Optional, defaults to your project).
+  - `SUPABASE_URL`: `https://eccoqnsmbebmumxuhhkv.supabase.co` (Optional, defaults to your project).
   - `APP_HEALTH_URL`: `https://your-deployed-app.com/api/health` (Optional).
 
 ### Option B: Free Cron Monitor (e.g. cron-job.org)
 1. Register a free account at [cron-job.org](https://cron-job.org).
 2. Create a new cron job:
-   - **URL:** `https://your-domain.com/api/health` (or direct Supabase REST endpoint: `https://jyxhhefesovztegtzrnb.supabase.co/rest/v1/company_settings?select=id&limit=1`).
+   - **URL:** `https://your-domain.com/api/health` (or direct Supabase REST endpoint: `https://eccoqnsmbebmumxuhhkv.supabase.co/rest/v1/company_settings?select=id&limit=1`).
    - **Schedule:** Every 3 days (e.g., At 08:00 AM, Day 1, 4, 7, 10...).
    - **Method:** `GET`
    - **Headers:** (If calling Supabase direct)

@@ -9,7 +9,8 @@ import { generateFullDatabaseBackup, downloadFile, convertToCSV } from "@/lib/ba
 import { PageHeader } from "@/components/layout/AppShell";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useSettings } from "@/lib/queries";
-import { uploadCompanyAsset } from "@/lib/storage";
+import { uploadCompanyAsset, STORAGE_BUCKETS } from "@/lib/storage";
+import { StorageImg } from "@/components/storage/StorageMedia";
 import type { CompanySettings } from "@/lib/payroll";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,16 +50,12 @@ function SettingsPage() {
     if (!file) return;
     try {
       toast.info("Uploading asset to Supabase Storage...");
-      const publicUrl = await uploadCompanyAsset(file, field === "logo_url" ? "logo" : "signature");
-      setForm((prev) => ({ ...prev, [field]: publicUrl }));
-      toast.success("Asset uploaded to Supabase Storage");
+      const uploaded = await uploadCompanyAsset(file, field === "logo_url" ? "logo" : "signature");
+      // Persist durable storage ref; public URL used for immediate preview
+      setForm((prev) => ({ ...prev, [field]: uploaded.ref || uploaded.url }));
+      toast.success("Asset saved to Supabase Storage (company-assets)");
     } catch (err: any) {
-      console.warn("Storage upload error, using local preview:", err);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setForm((prev) => ({ ...prev, [field]: e.target?.result as string }));
-      };
-      reader.readAsDataURL(file);
+      toast.error(err?.message || "Upload failed — file was not saved. Check Storage buckets/policies.");
     }
   };
 
@@ -140,11 +137,20 @@ function SettingsPage() {
               <Label>Company Logo</Label>
               <div className="mt-2 flex items-center gap-4">
                 <div className="h-16 w-36 rounded-md border bg-muted/30 p-1 flex items-center justify-center overflow-hidden">
-                  <img
-                    src={form.logo_url || "/apple-touch-icon.png"}
-                    alt="Logo"
-                    className="max-h-full max-w-full object-contain"
-                  />
+                  {form.logo_url && form.logo_url !== "/apple-touch-icon.png" ? (
+                    <StorageImg
+                      value={form.logo_url}
+                      alt="Logo"
+                      className="max-h-full max-w-full object-contain"
+                      fallbackBucket={STORAGE_BUCKETS.companyAssets}
+                    />
+                  ) : (
+                    <img
+                      src="/apple-touch-icon.png"
+                      alt="Logo"
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  )}
                 </div>
                 <div className="space-y-1">
                   <label htmlFor="company-logo-upload" className="cursor-pointer inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent">
@@ -316,10 +322,11 @@ function SettingsPage() {
               <div className="mt-2 flex items-center gap-4">
                 {form.authorized_signature ? (
                   <div className="h-14 w-36 rounded-md border bg-muted/20 p-1 flex items-center justify-center overflow-hidden">
-                    <img
-                      src={form.authorized_signature}
+                    <StorageImg
+                      value={form.authorized_signature}
                       alt="Signature"
                       className="max-h-full max-w-full object-contain"
+                      fallbackBucket={STORAGE_BUCKETS.companyAssets}
                     />
                   </div>
                 ) : (

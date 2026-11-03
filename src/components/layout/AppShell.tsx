@@ -49,7 +49,7 @@ const NAV: readonly NavItem[] = [
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { roles } = useAuth();
-  const isAdmin = roles.includes("admin") || roles.length === 0;
+  const isAdmin = roles.includes("admin") || roles.includes("superadmin");
 
   const items: readonly NavItem[] = useMemo(() => {
     if (isAdmin) return NAV;
@@ -173,7 +173,13 @@ export function AppShell() {
                 {user?.email?.split("@")[0] === "admin" ? "BLX Admin Bossu" : user?.email || "BLX Admin Bossu"}
               </p>
               <p className="truncate text-[10px] text-muted-foreground capitalize">
-                {roles.includes("admin") ? "Administrator" : "Employee"}
+                {roles.includes("superadmin")
+                  ? "Super Admin"
+                  : roles.includes("admin")
+                    ? "Administrator"
+                    : roles.includes("hr")
+                      ? "HR"
+                      : "Employee"}
               </p>
             </div>
           </div>

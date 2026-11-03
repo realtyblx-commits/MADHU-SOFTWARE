@@ -1,5 +1,6 @@
 import React from "react";
 import { PayslipRecord, formatIndianCurrency, formatSalaryMonthYear } from "@/lib/payroll";
+import { resolveStorageUrl } from "@/lib/storage";
 
 interface PayslipDocumentProps {
   data: PayslipRecord;
@@ -8,6 +9,30 @@ interface PayslipDocumentProps {
 
 export const PayslipDocument = React.forwardRef<HTMLDivElement, PayslipDocumentProps>(
   ({ data, id = "payslip-render-node" }, ref) => {
+    const [logoUrl, setLogoUrl] = React.useState(data.company_logo || "/apple-touch-icon.png");
+    const [empSigUrl, setEmpSigUrl] = React.useState(data.employee_signature || "");
+    const [authSigUrl, setAuthSigUrl] = React.useState(data.authorized_signature || "");
+
+    React.useEffect(() => {
+      let cancelled = false;
+      (async () => {
+        const [logo, emp, auth] = await Promise.all([
+          data.company_logo && data.company_logo !== "/apple-touch-icon.png"
+            ? resolveStorageUrl(data.company_logo)
+            : Promise.resolve("/apple-touch-icon.png"),
+          data.employee_signature ? resolveStorageUrl(data.employee_signature) : Promise.resolve(""),
+          data.authorized_signature ? resolveStorageUrl(data.authorized_signature) : Promise.resolve(""),
+        ]);
+        if (cancelled) return;
+        setLogoUrl(logo || "/apple-touch-icon.png");
+        setEmpSigUrl(emp || "");
+        setAuthSigUrl(auth || "");
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [data.company_logo, data.employee_signature, data.authorized_signature]);
+
     // Format Month & Year
     const salaryMonthYear = React.useMemo(() => {
       return formatSalaryMonthYear(data.salary_period_start, data.salary_period_end, data.salary_period_label);
@@ -46,7 +71,7 @@ export const PayslipDocument = React.forwardRef<HTMLDivElement, PayslipDocumentP
         {/* Header: Centered Logo & Company Details */}
         <div className="text-center mb-6">
           <img
-            src={data.company_logo || "/apple-touch-icon.png"}
+            src={logoUrl || "/apple-touch-icon.png"}
             alt="BLX REALTY"
             className="h-16 mx-auto object-contain mb-3 block"
             crossOrigin="anonymous"
@@ -207,11 +232,12 @@ export const PayslipDocument = React.forwardRef<HTMLDivElement, PayslipDocumentP
               Employee Signature:
             </span>
             <div className="relative w-64 h-14 flex items-end justify-center">
-              {data.employee_signature ? (
+              {empSigUrl ? (
                 <img
-                  src={data.employee_signature}
+                  src={empSigUrl}
                   alt="Employee Signature"
                   className="max-h-14 max-w-full object-contain relative z-10 block mb-[-1px]"
+                  crossOrigin="anonymous"
                 />
               ) : null}
               <div className="absolute bottom-0 left-0 right-0 border-b border-black pointer-events-none" />
@@ -224,11 +250,12 @@ export const PayslipDocument = React.forwardRef<HTMLDivElement, PayslipDocumentP
               {data.authorized_signatory_label || "Authorized Signatory (BLX Realty Pvt Ltd)"}:
             </span>
             <div className="relative w-64 h-14 flex items-end justify-center">
-              {data.authorized_signature ? (
+              {authSigUrl ? (
                 <img
-                  src={data.authorized_signature}
+                  src={authSigUrl}
                   alt="Authorized Signature"
                   className="max-h-14 max-w-full object-contain relative z-10 block mb-[-1px]"
+                  crossOrigin="anonymous"
                 />
               ) : null}
               <div className="absolute bottom-0 left-0 right-0 border-b border-black pointer-events-none" />

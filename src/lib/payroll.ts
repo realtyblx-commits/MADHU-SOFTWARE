@@ -94,7 +94,10 @@ export interface EmployeeDocument {
   id: string;
   name: string;
   category: "aadhaar" | "pan" | "bank_passbook" | "photo" | "offer_letter" | "other";
+  /** Durable Supabase Storage pointer (`bucket::path`) — never base64 */
   file_url: string;
+  storage_bucket?: string;
+  storage_path?: string;
   file_name: string;
   file_size?: string;
   uploaded_by: "admin" | "employee";

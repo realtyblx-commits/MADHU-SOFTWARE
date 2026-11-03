@@ -68,7 +68,7 @@ function PayslipDetailPage() {
     },
   });
 
-  const { user } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
   const hasNotifiedViewRef = useRef(false);
 
   React.useEffect(() => {
@@ -151,22 +151,26 @@ function PayslipDetailPage() {
       const year = dateParts[0] || new Date().getFullYear();
       const month = dateParts[1] || new Date().getMonth() + 1;
 
-      try {
-        const uploadRes = await uploadPayslipPDF(
-          blob,
-          year,
-          month,
-          payslip.employee_id,
-          payslip.payslip_number
-        );
-        if (uploadRes.path) {
-          await supabase.from("payslips").update({
-            pdf_storage_path: uploadRes.path,
-            pdf_generated_at: new Date().toISOString(),
-          } as any).eq("id", id);
-        }
-      } catch (uploadErr) {
-        console.warn("Storage upload notice:", uploadErr);
+      const uploadRes = await uploadPayslipPDF(
+        blob,
+        year,
+        month,
+        payslip.employee_id,
+        payslip.payslip_number
+      );
+      const { error: pdfMetaErr } = await supabase.rpc("touch_payslip_pdf_meta" as never, {
+        p_id: id,
+        p_path: uploadRes.ref,
+        p_size: uploadRes.sizeBytes ?? null,
+        p_generated_at: new Date().toISOString(),
+      } as never);
+      if (pdfMetaErr) {
+        // Fallback for DBs that have not applied the RPC yet (superadmin direct update)
+        await supabase.from("payslips").update({
+          pdf_storage_path: uploadRes.ref,
+          pdf_file_size: uploadRes.sizeBytes ?? null,
+          pdf_generated_at: new Date().toISOString(),
+        } as any).eq("id", id);
       }
 
       pdf.save(`Payslip_${payslip.payslip_number}.pdf`);
@@ -206,7 +210,14 @@ function PayslipDetailPage() {
     );
   }
 
-  if (isEditing) {
+  React.useEffect(() => {
+    if (isEditing && !isSuperAdmin) {
+      setIsEditing(false);
+      toast.error("Only Super Admin can edit payslips.");
+    }
+  }, [isEditing, isSuperAdmin]);
+
+  if (isEditing && isSuperAdmin) {
     return <PayslipCMS initialData={payslip} isEditing={true} />;
   }
 
@@ -221,23 +232,27 @@ function PayslipDetailPage() {
         </Button>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-            <Edit3 className="size-4 mr-1.5" /> Edit Payslip
-          </Button>
+          {isSuperAdmin && (
+            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+              <Edit3 className="size-4 mr-1.5" /> Edit Payslip
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={handleDownload} disabled={isDownloading}>
             <Download className="size-4 mr-1.5" /> Download PDF
           </Button>
           <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="size-4 mr-1.5" /> Print
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsDeleteDialogOpen(true)}
-            className="text-destructive hover:bg-destructive/10"
-          >
-            <Trash2 className="size-4 mr-1.5" /> Delete
-          </Button>
+          {isSuperAdmin && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsDeleteDialogOpen(true)}
+              className="text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="size-4 mr-1.5" /> Delete
+            </Button>
+          )}
         </div>
       </div>
 

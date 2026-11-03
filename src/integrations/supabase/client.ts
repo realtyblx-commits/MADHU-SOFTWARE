@@ -4,11 +4,11 @@ import type { Database } from "./types";
 // Client-side environment variables for Supabase connection
 const supabaseUrl =
   (import.meta.env["VITE_SUPABASE_URL"] as string | undefined) ||
-  "https://jyxhhefesovztegtzrnb.supabase.co";
+  "https://eccoqnsmbebmumxuhhkv.supabase.co";
 
 const supabaseAnonKey =
   (import.meta.env["VITE_SUPABASE_ANON_KEY"] as string | undefined) ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5eGhoZWZlc292enRlZ3R6cm5iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4OTM0MzYsImV4cCI6MjEwNDQ2OTQzNn0.HWjgw9cgIyGXtgO1UrdxGEuElTRxg93qHA4D1nSjK2A";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVjY29xbnNtYmVibXVteHVoaGt2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2NzkyNDYsImV4cCI6MjEwOTI1NTI0Nn0.1Un9eSRVYhzrNQGYbv73ZvLwBzL33P7LwdfxnigA8z0";
 
 /**
  * Direct Supabase Client connecting 100% natively to Supabase PostgreSQL,

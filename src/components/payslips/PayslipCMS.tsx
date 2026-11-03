@@ -49,18 +49,36 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/use-auth";
 
 interface PayslipCMSProps {
   initialData?: PayslipRecord;
   isEditing?: boolean;
 }
 
+const isUuid = (str?: string | null) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || ""));
+
+
 export function PayslipCMS({ initialData, isEditing = false }: PayslipCMSProps) {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { isSuperAdmin, isManager } = useAuth();
   const printRef = useRef<HTMLDivElement>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  useEffect(() => {
+    if (isEditing && !isSuperAdmin) {
+      toast.error("Only Super Admin can edit existing payslips.");
+      navigate({ to: "/payslips" });
+      return;
+    }
+    if (!isEditing && !isManager) {
+      toast.error("You do not have permission to create payslips.");
+      navigate({ to: "/payslips" });
+    }
+  }, [isEditing, isSuperAdmin, isManager, navigate]);
 
   // Fetch company settings & employees
   const { data: settings } = useQuery<CompanySettings | null>({
@@ -198,21 +216,25 @@ export function PayslipCMS({ initialData, isEditing = false }: PayslipCMSProps) 
     }));
   };
 
-  // Image Upload handler (for logo or signatures)
-  const handleImageUpload = (
+  // Image Upload handler — always Supabase Storage (never base64 in DB)
+  const handleImageUpload = async (
     field: "company_logo" | "employee_signature" | "authorized_signature",
     file: File | null
   ) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
+    try {
+      toast.info("Uploading image to Supabase Storage...");
+      const { uploadPayslipImage } = await import("@/lib/storage");
+      const uploaded = await uploadPayslipImage(file, field, form.employee_id || undefined);
+      // Persist durable storage ref in DB; preview uses resolved URL via PayslipDocument
       setForm((prev) => ({
         ...prev,
-        [field]: e.target?.result as string,
+        [field]: uploaded.ref,
       }));
-      toast.success("Image uploaded");
-    };
-    reader.readAsDataURL(file);
+      toast.success("Image saved to Supabase Storage");
+    } catch (err: any) {
+      toast.error(err?.message || "Image upload failed");
+    }
   };
 
   // Save Mutation
@@ -232,9 +254,6 @@ export function PayslipCMS({ initialData, isEditing = false }: PayslipCMSProps) 
           (e as any).employee_id === form.employee_id ||
           (form.employee_name && e.full_name?.toLowerCase() === form.employee_name?.toLowerCase())
       );
-
-      const isUuid = (str?: string | null) =>
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || ""));
 
       const empUuid = emp?.id || (isUuid(form.employee_id) ? form.employee_id : employees[0]?.id);
       if (!empUuid) {
@@ -267,9 +286,15 @@ export function PayslipCMS({ initialData, isEditing = false }: PayslipCMSProps) 
       };
 
       if (isEditing && isUuid(form.id)) {
+        if (!isSuperAdmin) {
+          throw new Error("Only Super Admin can edit existing payslips.");
+        }
         const { error } = await supabase.from("payslips").update(dbPayload as any).eq("id", form.id);
         if (error) throw error;
       } else {
+        if (!isManager) {
+          throw new Error("You do not have permission to create payslips.");
+        }
         const { error } = await supabase.from("payslips").insert(dbPayload as any);
         if (error) throw error;
       }
@@ -317,26 +342,31 @@ export function PayslipCMS({ initialData, isEditing = false }: PayslipCMSProps) 
       const year = dateParts[0] || new Date().getFullYear();
       const month = dateParts[1] || new Date().getMonth() + 1;
 
-      try {
-        const uploadRes = await uploadPayslipPDF(
-          blob,
-          year,
-          month,
-          form.employee_id,
-          form.payslip_number
-        );
-        if (uploadRes.path) {
+      const uploadRes = await uploadPayslipPDF(
+        blob,
+        year,
+        month,
+        form.employee_id,
+        form.payslip_number
+      );
+      if (isUuid(form.id)) {
+        const { error: pdfMetaErr } = await supabase.rpc("touch_payslip_pdf_meta" as never, {
+          p_id: form.id,
+          p_path: uploadRes.ref,
+          p_size: uploadRes.sizeBytes ?? null,
+          p_generated_at: new Date().toISOString(),
+        } as never);
+        if (pdfMetaErr && isSuperAdmin) {
           await supabase.from("payslips").update({
-            pdf_storage_path: uploadRes.path,
+            pdf_storage_path: uploadRes.ref,
+            pdf_file_size: uploadRes.sizeBytes ?? null,
             pdf_generated_at: new Date().toISOString(),
-          } as any).eq("payslip_number", form.payslip_number);
+          } as any).eq("id", form.id);
         }
-      } catch (uploadErr) {
-        console.warn("Notice: storage upload on create:", uploadErr);
       }
 
       pdf.save(`Payslip_${form.payslip_number}.pdf`);
-      toast.success("Payslip PDF saved to Supabase & downloaded.");
+      toast.success("Payslip PDF saved to Supabase Storage (payslips) & downloaded.");
     } catch (err: any) {
       toast.error("Failed to generate PDF: " + err.message);
     } finally {

@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { logAuditEvent } from "@/lib/audit";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DocumentVaultModal } from "@/components/employees/DocumentVaultModal";
+import { StorageImg } from "@/components/storage/StorageMedia";
+import { STORAGE_BUCKETS } from "@/lib/storage";
 import { useEmployees, useSettings } from "@/lib/queries";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -87,19 +89,26 @@ function EmployeesPage() {
   const [portalPassword, setPortalPassword] = useState("blx123");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Photograph must be less than 5MB");
+    const code = form.employee_code?.trim();
+    if (!code) {
+      toast.error("Enter Employee Code before uploading a photograph");
+      e.target.value = "";
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setForm((prev) => ({ ...prev, photo_doc: reader.result as string }));
-      toast.success("Employee photograph attached");
-    };
-    reader.readAsDataURL(file);
+    try {
+      toast.info("Uploading photograph to Supabase Storage...");
+      const { uploadEmployeePhoto } = await import("@/lib/storage");
+      const uploaded = await uploadEmployeePhoto(file, code);
+      setForm((prev) => ({ ...prev, photo_doc: uploaded.ref }));
+      toast.success("Photograph saved to Supabase Storage (employee-photos)");
+    } catch (err: any) {
+      toast.error(err?.message || "Photograph upload failed");
+    } finally {
+      e.target.value = "";
+    }
   };
 
   const departments = useMemo(
@@ -384,7 +393,12 @@ function EmployeesPage() {
                         <div className="flex items-center gap-2.5">
                           <div className="size-8 rounded-full overflow-hidden bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0 shadow-xs">
                             {e.photo_doc ? (
-                              <img src={e.photo_doc} alt={e.full_name} className="size-full object-cover" />
+                              <StorageImg
+                                value={e.photo_doc}
+                                alt={e.full_name}
+                                className="size-full object-cover"
+                                fallbackBucket={STORAGE_BUCKETS.employeePhotos}
+                              />
                             ) : (
                               (e.full_name || "EM").slice(0, 2).toUpperCase()
                             )}
@@ -502,10 +516,11 @@ function EmployeesPage() {
             <div className="md:col-span-2 flex flex-col sm:flex-row items-start sm:items-center gap-4 p-3.5 rounded-xl border border-border/80 bg-muted/20">
               <div className="relative size-16 shrink-0 rounded-2xl overflow-hidden bg-background border-2 border-dashed border-primary/40 flex items-center justify-center shadow-sm">
                 {form.photo_doc ? (
-                  <img
-                    src={form.photo_doc}
+                  <StorageImg
+                    value={form.photo_doc}
                     alt="Employee Avatar"
                     className="size-full object-cover"
+                    fallbackBucket={STORAGE_BUCKETS.employeePhotos}
                   />
                 ) : (
                   <div className="flex flex-col items-center justify-center text-muted-foreground/60">

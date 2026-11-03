@@ -9,7 +9,14 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- 2. ROLES & ENUMS
 DO $$ BEGIN
-  CREATE TYPE public.app_role AS ENUM ('admin', 'hr', 'employee');
+  CREATE TYPE public.app_role AS ENUM ('admin', 'hr', 'employee', 'superadmin');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+-- Existing DBs may already have the enum without superadmin
+DO $$ BEGIN
+  ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'superadmin';
 EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
@@ -92,18 +99,23 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT public.has_role(auth.uid(), 'admin');
+  SELECT public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'superadmin');
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_superadmin()
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT public.has_role(auth.uid(), 'superadmin');
 $$;
 
 CREATE OR REPLACE FUNCTION public.is_payroll_manager(_user_id uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.user_roles
-    WHERE user_id = _user_id AND role IN ('admin', 'hr')
+    WHERE user_id = _user_id AND role IN ('admin', 'hr', 'superadmin')
   );
 $$;
 
--- Default first user to admin, others to employee
+-- Default first user to admin+superadmin, others to employee
 CREATE OR REPLACE FUNCTION public.assign_default_role()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -113,9 +125,16 @@ BEGIN
   SELECT count(*) INTO role_count FROM public.user_roles;
   requested_role := NEW.raw_user_meta_data->>'role';
 
-  IF requested_role = 'admin' OR role_count = 0 THEN
+  IF requested_role IN ('admin', 'superadmin') OR role_count = 0 THEN
     INSERT INTO public.user_roles (user_id, role)
     VALUES (NEW.id, 'admin'::public.app_role)
+    ON CONFLICT DO NOTHING;
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (NEW.id, 'superadmin'::public.app_role)
+    ON CONFLICT DO NOTHING;
+  ELSIF requested_role = 'hr' THEN
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (NEW.id, 'hr'::public.app_role)
     ON CONFLICT DO NOTHING;
   ELSE
     INSERT INTO public.user_roles (user_id, role)
@@ -548,9 +567,59 @@ CREATE POLICY "payslips_read" ON public.payslips FOR SELECT TO authenticated
   USING (public.is_payroll_manager(auth.uid()) OR employee_id = public.get_current_employee_id());
 
 DROP POLICY IF EXISTS "payslips_admin_write" ON public.payslips;
-CREATE POLICY "payslips_admin_write" ON public.payslips FOR ALL TO authenticated
-  USING (public.is_payroll_manager(auth.uid()))
+DROP POLICY IF EXISTS "payslips_manager_insert" ON public.payslips;
+DROP POLICY IF EXISTS "payslips_superadmin_update" ON public.payslips;
+DROP POLICY IF EXISTS "payslips_superadmin_delete" ON public.payslips;
+
+-- Managers/admins can generate new slips; only superadmin can edit or delete existing ones
+CREATE POLICY "payslips_manager_insert" ON public.payslips
+  FOR INSERT TO authenticated
   WITH CHECK (public.is_payroll_manager(auth.uid()));
+
+CREATE POLICY "payslips_superadmin_update" ON public.payslips
+  FOR UPDATE TO authenticated
+  USING (public.is_superadmin())
+  WITH CHECK (public.is_superadmin());
+
+CREATE POLICY "payslips_superadmin_delete" ON public.payslips
+  FOR DELETE TO authenticated
+  USING (public.is_superadmin());
+
+-- Readers may update PDF storage metadata only (used on download)
+CREATE OR REPLACE FUNCTION public.touch_payslip_pdf_meta(
+  p_id uuid,
+  p_path text,
+  p_size bigint DEFAULT NULL,
+  p_generated_at timestamptz DEFAULT now()
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.payslips
+    WHERE id = p_id
+      AND (
+        public.is_payroll_manager(auth.uid())
+        OR employee_id = public.get_current_employee_id()
+      )
+  ) THEN
+    RAISE EXCEPTION 'Not allowed to update payslip PDF metadata';
+  END IF;
+
+  UPDATE public.payslips
+  SET
+    pdf_storage_path = p_path,
+    pdf_file_size = COALESCE(p_size, pdf_file_size),
+    pdf_generated_at = COALESCE(p_generated_at, now()),
+    updated_at = now()
+  WHERE id = p_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.touch_payslip_pdf_meta(uuid, text, bigint, timestamptz) TO authenticated;
 
 -- LEAVE REQUESTS
 DROP POLICY IF EXISTS "leave_read" ON public.leave_requests;
@@ -588,71 +657,105 @@ CREATE POLICY "audit_logs_insert_authenticated" ON public.audit_logs FOR INSERT 
 
 -- ====================================================================
 -- 16. SUPABASE STORAGE BUCKETS & POLICIES
--- Buckets:
---   1. company-assets: Logos, signatures, company branding
---   2. payslips: Generated PDF salary slip documents
---   3. employee-documents: KYC records (Aadhaar, PAN, Passbook, custom)
+-- See also: supabase/migrations/20260322_storage_buckets_secure.sql
+--
+-- PUBLIC:
+--   company-assets      — logos / authorized signatures
+-- PRIVATE:
+--   employee-photos     — passport photographs
+--   employee-kyc        — Aadhaar, PAN, bank passbook
+--   employee-documents  — offer letters & other HR docs
+--   payslips            — salary PDFs
 -- ====================================================================
-INSERT INTO storage.buckets (id, name, public)
-VALUES 
-  ('company-assets', 'company-assets', true),
-  ('payslips', 'payslips', false),
-  ('employee-documents', 'employee-documents', false)
-ON CONFLICT (id) DO UPDATE SET public = EXCLUDED.public;
 
--- company-assets: Public read, admin write
-DROP POLICY IF EXISTS "company_assets_public_read" ON storage.objects;
+CREATE OR REPLACE FUNCTION public.current_employee_code()
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT employee_code FROM public.employees WHERE user_id = auth.uid() LIMIT 1;
+$$;
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES
+  ('company-assets', 'company-assets', true, 5242880,
+    ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']),
+  ('employee-photos', 'employee-photos', false, 5242880,
+    ARRAY['image/png', 'image/jpeg', 'image/webp']),
+  ('employee-kyc', 'employee-kyc', false, 15728640,
+    ARRAY['image/png', 'image/jpeg', 'image/webp', 'application/pdf']),
+  ('employee-documents', 'employee-documents', false, 15728640,
+    ARRAY['image/png', 'image/jpeg', 'image/webp', 'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document']),
+  ('payslips', 'payslips', false, 20971520, ARRAY['application/pdf'])
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- Drop prior policies for these buckets (idempotent)
+DO $$
+DECLARE pol record;
+BEGIN
+  FOR pol IN
+    SELECT policyname FROM pg_policies
+    WHERE schemaname = 'storage' AND tablename = 'objects'
+      AND (
+        policyname ILIKE '%company_assets%' OR policyname ILIKE '%employee_photos%'
+        OR policyname ILIKE '%employee_kyc%' OR policyname ILIKE '%employee_documents%'
+        OR policyname ILIKE '%payslips%'
+      )
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON storage.objects', pol.policyname);
+  END LOOP;
+END $$;
+
 CREATE POLICY "company_assets_public_read" ON storage.objects FOR SELECT TO public
   USING (bucket_id = 'company-assets');
-
-DROP POLICY IF EXISTS "company_assets_admin_insert" ON storage.objects;
-CREATE POLICY "company_assets_admin_insert" ON storage.objects FOR INSERT TO authenticated
+CREATE POLICY "company_assets_manager_insert" ON storage.objects FOR INSERT TO authenticated
   WITH CHECK (bucket_id = 'company-assets' AND public.is_payroll_manager(auth.uid()));
-
-DROP POLICY IF EXISTS "company_assets_admin_update" ON storage.objects;
-CREATE POLICY "company_assets_admin_update" ON storage.objects FOR UPDATE TO authenticated
+CREATE POLICY "company_assets_manager_update" ON storage.objects FOR UPDATE TO authenticated
+  USING (bucket_id = 'company-assets' AND public.is_payroll_manager(auth.uid()));
+CREATE POLICY "company_assets_manager_delete" ON storage.objects FOR DELETE TO authenticated
   USING (bucket_id = 'company-assets' AND public.is_payroll_manager(auth.uid()));
 
-DROP POLICY IF EXISTS "company_assets_admin_delete" ON storage.objects;
-CREATE POLICY "company_assets_admin_delete" ON storage.objects FOR DELETE TO authenticated
-  USING (bucket_id = 'company-assets' AND public.is_payroll_manager(auth.uid()));
+CREATE POLICY "employee_photos_manager_all" ON storage.objects FOR ALL TO authenticated
+  USING (bucket_id = 'employee-photos' AND public.is_payroll_manager(auth.uid()))
+  WITH CHECK (bucket_id = 'employee-photos' AND public.is_payroll_manager(auth.uid()));
+CREATE POLICY "employee_photos_own_select" ON storage.objects FOR SELECT TO authenticated
+  USING (bucket_id = 'employee-photos' AND (storage.foldername(name))[1] = public.current_employee_code());
+CREATE POLICY "employee_photos_own_insert" ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'employee-photos' AND (storage.foldername(name))[1] = public.current_employee_code());
+CREATE POLICY "employee_photos_own_update" ON storage.objects FOR UPDATE TO authenticated
+  USING (bucket_id = 'employee-photos' AND (storage.foldername(name))[1] = public.current_employee_code());
+CREATE POLICY "employee_photos_own_delete" ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'employee-photos' AND (storage.foldername(name))[1] = public.current_employee_code());
 
--- payslips: Admin full access; Employee read-own
-DROP POLICY IF EXISTS "payslips_admin_all" ON storage.objects;
-CREATE POLICY "payslips_admin_all" ON storage.objects FOR ALL TO authenticated
-  USING (bucket_id = 'payslips' AND public.is_payroll_manager(auth.uid()))
-  WITH CHECK (bucket_id = 'payslips' AND public.is_payroll_manager(auth.uid()));
+CREATE POLICY "employee_kyc_manager_all" ON storage.objects FOR ALL TO authenticated
+  USING (bucket_id = 'employee-kyc' AND public.is_payroll_manager(auth.uid()))
+  WITH CHECK (bucket_id = 'employee-kyc' AND public.is_payroll_manager(auth.uid()));
+CREATE POLICY "employee_kyc_own_select" ON storage.objects FOR SELECT TO authenticated
+  USING (bucket_id = 'employee-kyc' AND (storage.foldername(name))[1] = public.current_employee_code());
+CREATE POLICY "employee_kyc_own_insert" ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'employee-kyc' AND (storage.foldername(name))[1] = public.current_employee_code());
+CREATE POLICY "employee_kyc_own_delete" ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'employee-kyc' AND (storage.foldername(name))[1] = public.current_employee_code());
 
-DROP POLICY IF EXISTS "payslips_employee_read" ON storage.objects;
-CREATE POLICY "payslips_employee_read" ON storage.objects FOR SELECT TO authenticated
-  USING (
-    bucket_id = 'payslips' AND
-    name LIKE '%' || (SELECT employee_code FROM public.employees WHERE user_id = auth.uid() LIMIT 1) || '%'
-  );
-
--- employee-documents: Admin full access; Employee access own documents
-DROP POLICY IF EXISTS "employee_documents_admin_all" ON storage.objects;
-CREATE POLICY "employee_documents_admin_all" ON storage.objects FOR ALL TO authenticated
+CREATE POLICY "employee_documents_manager_all" ON storage.objects FOR ALL TO authenticated
   USING (bucket_id = 'employee-documents' AND public.is_payroll_manager(auth.uid()))
   WITH CHECK (bucket_id = 'employee-documents' AND public.is_payroll_manager(auth.uid()));
+CREATE POLICY "employee_documents_own_select" ON storage.objects FOR SELECT TO authenticated
+  USING (bucket_id = 'employee-documents' AND (storage.foldername(name))[1] = public.current_employee_code());
+CREATE POLICY "employee_documents_own_insert" ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'employee-documents' AND (storage.foldername(name))[1] = public.current_employee_code());
+CREATE POLICY "employee_documents_own_delete" ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'employee-documents' AND (storage.foldername(name))[1] = public.current_employee_code());
 
-DROP POLICY IF EXISTS "employee_documents_employee_read" ON storage.objects;
-CREATE POLICY "employee_documents_employee_read" ON storage.objects FOR SELECT TO authenticated
-  USING (
-    bucket_id = 'employee-documents' AND
-    name LIKE (SELECT employee_code FROM public.employees WHERE user_id = auth.uid() LIMIT 1) || '/%'
-  );
-
-DROP POLICY IF EXISTS "employee_documents_employee_insert" ON storage.objects;
-CREATE POLICY "employee_documents_employee_insert" ON storage.objects FOR INSERT TO authenticated
-  WITH CHECK (
-    bucket_id = 'employee-documents' AND
-    name LIKE (SELECT employee_code FROM public.employees WHERE user_id = auth.uid() LIMIT 1) || '/%'
-  );
-
-DROP POLICY IF EXISTS "employee_documents_employee_delete" ON storage.objects;
-CREATE POLICY "employee_documents_employee_delete" ON storage.objects FOR DELETE TO authenticated
-  USING (
-    bucket_id = 'employee-documents' AND
-    name LIKE (SELECT employee_code FROM public.employees WHERE user_id = auth.uid() LIMIT 1) || '/%'
-  );
+CREATE POLICY "payslips_manager_all" ON storage.objects FOR ALL TO authenticated
+  USING (bucket_id = 'payslips' AND public.is_payroll_manager(auth.uid()))
+  WITH CHECK (bucket_id = 'payslips' AND public.is_payroll_manager(auth.uid()));
+CREATE POLICY "payslips_own_select" ON storage.objects FOR SELECT TO authenticated
+  USING (bucket_id = 'payslips' AND (storage.foldername(name))[3] = public.current_employee_code());

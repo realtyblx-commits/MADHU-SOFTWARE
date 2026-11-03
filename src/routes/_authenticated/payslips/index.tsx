@@ -61,7 +61,7 @@ export const Route = createFileRoute("/_authenticated/payslips/")({
 function PayslipsListPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
   const { data: employees = [] } = useEmployees();
 
   const [search, setSearch] = useState("");
@@ -117,6 +117,7 @@ function PayslipsListPage() {
   // Delete Mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      if (!isSuperAdmin) throw new Error("Only Super Admin can delete payslips.");
       await supabase.from("payslips").delete().eq("id", id);
       await supabase.from("payroll").delete().eq("id", id);
     },
@@ -414,13 +415,13 @@ function PayslipsListPage() {
                         >
                           <Download className="size-4" />
                         </Button>
-                        {isAdmin && (
+                        {isSuperAdmin && (
                           <>
                             <Button
                               asChild
                               variant="ghost"
                               size="icon"
-                              title="Edit Payslip"
+                              title="Edit Payslip (Super Admin only)"
                               className="h-8 w-8"
                             >
                               <Link to="/payslips/$id" params={{ id: p.id }}>
@@ -430,7 +431,7 @@ function PayslipsListPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              title="Delete Payslip"
+                              title="Delete Payslip (Super Admin only)"
                               className="h-8 w-8 text-destructive hover:bg-destructive/10"
                               onClick={() => setDeleteTarget(p)}
                             >

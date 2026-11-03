@@ -24,6 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { logAuditEvent } from "@/lib/audit";
 import { Employee, EmployeeDocument } from "@/lib/payroll";
 import { uploadEmployeeDocument, deleteEmployeeDocument } from "@/lib/storage";
+import { StorageImg, openStoragePreview } from "@/components/storage/StorageMedia";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -176,31 +177,19 @@ export function DocumentVaultModal({
     try {
       setIsSaving(true);
       toast.info("Uploading document to Supabase Storage...");
-      let fileUrl = "";
-      try {
-        const uploadRes = await uploadEmployeeDocument(
-          selectedCustomFile,
-          employee.employee_code,
-          customDocCategory
-        );
-        fileUrl = uploadRes.url || uploadRes.path;
-      } catch (uploadErr) {
-        console.warn("Notice: remote storage upload:", uploadErr);
-      }
-
-      if (!fileUrl) {
-        fileUrl = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target?.result as string);
-          reader.readAsDataURL(selectedCustomFile);
-        });
-      }
+      const uploadRes = await uploadEmployeeDocument(
+        selectedCustomFile,
+        employee.employee_code,
+        customDocCategory
+      );
 
       const newDoc: EmployeeDocument = {
         id: `doc-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
         name: customDocName.trim() || selectedCustomFile.name,
         category: customDocCategory as any,
-        file_url: fileUrl,
+        file_url: uploadRes.ref,
+        storage_bucket: uploadRes.bucket,
+        storage_path: uploadRes.path,
         file_name: selectedCustomFile.name,
         file_size:
           selectedCustomFile.size < 1024 * 1024
@@ -299,25 +288,11 @@ export function DocumentVaultModal({
     try {
       setIsSaving(true);
       toast.info("Uploading KYC document to Supabase Storage...");
-      let fileUrl = "";
-      try {
-        const uploadRes = await uploadEmployeeDocument(file, employee.employee_code, slotKey);
-        fileUrl = uploadRes.url || uploadRes.path;
-      } catch (uploadErr) {
-        console.warn("Notice: remote storage upload:", uploadErr);
-      }
-
-      if (!fileUrl) {
-        fileUrl = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target?.result as string);
-          reader.readAsDataURL(file);
-        });
-      }
+      const uploadRes = await uploadEmployeeDocument(file, employee.employee_code, slotKey);
 
       const updatedPayload = {
         ...employee,
-        [slotKey]: fileUrl,
+        [slotKey]: uploadRes.ref,
         updated_at: new Date().toISOString(),
       };
 
@@ -428,7 +403,9 @@ export function DocumentVaultModal({
             {DOC_SLOTS.map((slot) => {
               const fileData = (employee as any)[slot.key] as string | undefined | null;
               const isUploaded = Boolean(fileData);
-              const isPdf = fileData?.startsWith("data:application/pdf");
+              const isPdf =
+                Boolean(fileData?.startsWith("data:application/pdf")) ||
+                Boolean(fileData?.toLowerCase().includes(".pdf"));
               const Icon = slot.icon;
 
               return (
@@ -466,8 +443,8 @@ export function DocumentVaultModal({
                               <span className="text-[10px] text-muted-foreground">Ready to view / download</span>
                             </div>
                           ) : (
-                            <img
-                              src={fileData}
+                            <StorageImg
+                              value={fileData}
                               alt={slot.title}
                               className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
@@ -479,7 +456,14 @@ export function DocumentVaultModal({
                               size="sm"
                               variant="secondary"
                               className="h-8 px-2.5 text-xs font-medium"
-                              onClick={() => setActivePreview({ url: fileData, title: slot.title })}
+                              onClick={async () => {
+                                const url = await openStoragePreview(fileData);
+                                if (!url) {
+                                  toast.error("Could not resolve document from Supabase Storage");
+                                  return;
+                                }
+                                setActivePreview({ url, title: slot.title });
+                              }}
                             >
                               <Eye className="size-3.5 mr-1" /> View
                             </Button>
@@ -487,7 +471,14 @@ export function DocumentVaultModal({
                               size="sm"
                               variant="secondary"
                               className="h-8 px-2.5 text-xs font-medium"
-                              onClick={() => handleDownload(fileData, `${employee.employee_code}_${slot.key}`)}
+                              onClick={async () => {
+                                const url = await openStoragePreview(fileData);
+                                if (!url) {
+                                  toast.error("Could not resolve document from Supabase Storage");
+                                  return;
+                                }
+                                handleDownload(url, `${employee.employee_code}_${slot.key}`);
+                              }}
                             >
                               <Download className="size-3.5 mr-1" /> Download
                             </Button>
@@ -607,11 +598,13 @@ export function DocumentVaultModal({
                   const meta = getFileTypeMeta(doc.file_name);
                   const isPdf =
                     doc.file_name.toLowerCase().endsWith(".pdf") ||
+                    doc.file_url.toLowerCase().includes(".pdf") ||
                     doc.file_url.startsWith("data:application/pdf");
                   const isImage =
                     doc.file_url.startsWith("data:image/") ||
                     ["png", "jpg", "jpeg", "webp"].some((ext) =>
-                      doc.file_name.toLowerCase().endsWith(ext)
+                      doc.file_name.toLowerCase().endsWith(ext) ||
+                      doc.file_url.toLowerCase().includes(`.${ext}`)
                     );
 
                   return (
@@ -658,7 +651,14 @@ export function DocumentVaultModal({
                               size="icon"
                               className="size-7 text-muted-foreground hover:text-foreground"
                               title="Preview document"
-                              onClick={() => setActivePreview({ url: doc.file_url, title: doc.name })}
+                              onClick={async () => {
+                                const url = await openStoragePreview(doc.file_url);
+                                if (!url) {
+                                  toast.error("Could not resolve document from Supabase Storage");
+                                  return;
+                                }
+                                setActivePreview({ url, title: doc.name });
+                              }}
                             >
                               <Eye className="size-3.5" />
                             </Button>
@@ -668,7 +668,14 @@ export function DocumentVaultModal({
                             size="icon"
                             className="size-7 text-muted-foreground hover:text-foreground"
                             title="Download document"
-                            onClick={() => handleDownload(doc.file_url, doc.file_name)}
+                            onClick={async () => {
+                              const url = await openStoragePreview(doc.file_url);
+                              if (!url) {
+                                toast.error("Could not resolve document from Supabase Storage");
+                                return;
+                              }
+                              handleDownload(url, doc.file_name);
+                            }}
                           >
                             <Download className="size-3.5" />
                           </Button>
@@ -833,7 +840,8 @@ export function DocumentVaultModal({
               </Button>
             </DialogHeader>
             <div className="flex-1 overflow-auto rounded-lg border bg-muted/20 p-2 flex items-center justify-center min-h-[400px]">
-              {activePreview.url.startsWith("data:application/pdf") ? (
+              {activePreview.url.startsWith("data:application/pdf") ||
+              activePreview.url.toLowerCase().includes(".pdf") ? (
                 <iframe
                   src={activePreview.url}
                   title={activePreview.title}
