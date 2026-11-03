@@ -1,14 +1,21 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
+import { installSafeConsole } from "@/lib/safe-log";
 
-// Client-side environment variables for Supabase connection
+// Never log API keys / JWTs to the browser console
+installSafeConsole();
+
+// Client-side env only — no hardcoded secrets in source
 const supabaseUrl =
   (import.meta.env["VITE_SUPABASE_URL"] as string | undefined) ||
   "https://eccoqnsmbebmumxuhhkv.supabase.co";
 
-const supabaseAnonKey =
-  (import.meta.env["VITE_SUPABASE_ANON_KEY"] as string | undefined) ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVjY29xbnNtYmVibXVteHVoaGt2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2NzkyNDYsImV4cCI6MjEwOTI1NTI0Nn0.1Un9eSRVYhzrNQGYbv73ZvLwBzL33P7LwdfxnigA8z0";
+const supabaseAnonKey = import.meta.env["VITE_SUPABASE_ANON_KEY"] as string | undefined;
+
+if (!supabaseAnonKey) {
+  // Fail loudly without printing any key material
+  throw new Error("VITE_SUPABASE_ANON_KEY is not configured.");
+}
 
 /**
  * Direct Supabase Client connecting 100% natively to Supabase PostgreSQL,

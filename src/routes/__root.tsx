@@ -35,7 +35,8 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
+  // Message only — never dump raw error objects that may carry request/key material
+  console.error(error?.name || "Error", error?.message || "Unknown error");
   const router = useRouter();
 
   return (

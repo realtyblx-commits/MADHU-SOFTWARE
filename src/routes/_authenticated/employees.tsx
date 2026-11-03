@@ -169,7 +169,10 @@ function EmployeesPage() {
               .eq("employee_code", body.employee_code);
           }
         } catch (authErr) {
-          console.warn("Notice: remote Supabase Auth user provisioning:", authErr);
+          console.warn(
+            "Notice: remote Supabase Auth user provisioning:",
+            authErr instanceof Error ? authErr.message : "request failed"
+          );
         }
       }
 

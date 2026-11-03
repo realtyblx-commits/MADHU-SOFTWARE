@@ -138,7 +138,7 @@ export async function resolveStorageUrl(
     .createSignedUrl(parsed.path, expiresIn);
 
   if (error || !data?.signedUrl) {
-    console.error("Failed to resolve storage URL:", error?.message);
+    console.error("Failed to resolve storage URL:", error?.message || "no signed URL");
     return "";
   }
   return data.signedUrl;

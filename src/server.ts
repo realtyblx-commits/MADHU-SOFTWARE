@@ -128,8 +128,11 @@ export default {
 
             const serviceKey =
               (env as any)?.SUPABASE_SERVICE_ROLE_KEY ||
-              process.env["SUPABASE_SERVICE_ROLE_KEY"] ||
-              "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVjY29xbnNtYmVibXVteHVoaGt2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MzY3OTI0NiwiZXhwIjoyMTA5MjU1MjQ2fQ.oIbyuNO1XUSBh93YYScadmaUXnDAxi_-UAoejyDF4Vc";
+              process.env["SUPABASE_SERVICE_ROLE_KEY"];
+
+            if (!serviceKey) {
+              throw new Error("SUPABASE_SERVICE_ROLE_KEY is not defined in server environment");
+            }
 
             const adminClient = createClient(supabaseUrl, serviceKey, {
               auth: { autoRefreshToken: false, persistSession: false },
@@ -222,8 +225,11 @@ export default {
 
               const serviceKey =
                 (env as any)?.SUPABASE_SERVICE_ROLE_KEY ||
-                process.env["SUPABASE_SERVICE_ROLE_KEY"] ||
-                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVjY29xbnNtYmVibXVteHVoaGt2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MzY3OTI0NiwiZXhwIjoyMTA5MjU1MjQ2fQ.oIbyuNO1XUSBh93YYScadmaUXnDAxi_-UAoejyDF4Vc";
+                process.env["SUPABASE_SERVICE_ROLE_KEY"];
+
+              if (!serviceKey) {
+                throw new Error("SUPABASE_SERVICE_ROLE_KEY is not defined in server environment");
+              }
 
               const adminClient = createClient(supabaseUrl, serviceKey, {
                 auth: { autoRefreshToken: false, persistSession: false },
