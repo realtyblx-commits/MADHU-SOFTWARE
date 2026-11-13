@@ -9,6 +9,7 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rolesLoading, setRolesLoading] = useState(true);
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
@@ -20,6 +21,7 @@ export function useAuth() {
       setSession(data.session);
       setUser(data.session?.user ?? null);
       setLoading(false);
+      if (!data.session?.user) setRolesLoading(false);
       if (data.session?.user?.email && !data.session.user.email.includes("admin")) {
         fetch("/api/auth/sync-employee", {
           method: "POST",
@@ -39,8 +41,10 @@ export function useAuth() {
     let cancelled = false;
     if (!user) {
       setRoles([]);
+      setRolesLoading(false);
       return;
     }
+    setRolesLoading(true);
     supabase
       .from("user_roles")
       .select("role")
@@ -50,21 +54,38 @@ export function useAuth() {
         const fromDb = (data ?? []).map((r) => r.role as AppRole);
         const metaRole = user.user_metadata?.role as AppRole | undefined;
         if (metaRole && !fromDb.includes(metaRole)) fromDb.push(metaRole);
+        // Bootstrap: primary admin email is always treated as admin+superadmin
+        if (user.email?.toLowerCase() === "admin@blxrealty.com") {
+          if (!fromDb.includes("admin")) fromDb.push("admin");
+          if (!fromDb.includes("superadmin")) fromDb.push("superadmin");
+        }
         setRoles(fromDb);
+        setRolesLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setRolesLoading(false);
       });
     return () => {
       cancelled = true;
     };
   }, [user]);
 
-  // Prefer explicit superadmin role; bootstrap admin email kept until SQL migration adds the enum
   const isSuperAdmin =
     roles.includes("superadmin") ||
-    (roles.includes("admin") &&
-      (user?.email?.toLowerCase() === "admin@blxrealty.com" ||
-        user?.user_metadata?.role === "superadmin"));
-  const isAdmin = roles.includes("admin") || roles.includes("superadmin");
+    user?.user_metadata?.role === "superadmin" ||
+    user?.email?.toLowerCase() === "admin@blxrealty.com";
+  const isAdmin = roles.includes("admin") || roles.includes("superadmin") || isSuperAdmin;
   const isManager = isAdmin || roles.includes("hr");
+  const authReady = !loading && !rolesLoading;
 
-  return { session, user, roles, isManager, isAdmin, isSuperAdmin, loading };
+  return {
+    session,
+    user,
+    roles,
+    isManager,
+    isAdmin,
+    isSuperAdmin,
+    loading: !authReady,
+    authReady,
+  };
 }

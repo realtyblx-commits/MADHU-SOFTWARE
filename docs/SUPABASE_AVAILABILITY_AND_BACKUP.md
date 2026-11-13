@@ -49,30 +49,33 @@ If Supabase is temporarily paused or initializing:
 
 ## 3. External Scheduler / Keep-Alive Configuration
 
-Supabase Free Tier pauses projects after **7 consecutive days of inactivity**. To ensure availability for monthly payroll runs without over-querying, a low-frequency probe every **3 days** is recommended.
+Supabase Free Tier pauses projects after **7 consecutive days of inactivity**. This project pings the database every **5 minutes** with a **read-only** probe so the project stays warm without depending on user traffic.
 
-### Option A: GitHub Actions (Recommended — Zero Third-Party Setup)
-A workflow is pre-configured at [`.github/workflows/keep-alive.yml`](../.github/workflows/keep-alive.yml):
-- **Schedule:** Runs every 3 days at 06:00 UTC (`cron: '0 6 */3 * *'`).
-- **Secrets to configure (in GitHub Repo → Settings → Secrets & Variables → Actions):**
-  - `SUPABASE_ANON_KEY`: Your project publishable anon key.
-  - `SUPABASE_URL`: `https://eccoqnsmbebmumxuhhkv.supabase.co` (Optional, defaults to your project).
-  - `APP_HEALTH_URL`: `https://your-deployed-app.com/api/health` (Optional).
+### Option A: GitHub Actions (Recommended)
+Workflow: [`.github/workflows/keep-alive.yml`](../.github/workflows/keep-alive.yml)  
+Script: [`scripts/supabase-keep-alive.mjs`](../scripts/supabase-keep-alive.mjs)
+
+- **Schedule:** every 5 minutes (`cron: '*/5 * * * *'`), plus manual `workflow_dispatch`.
+- **Probe:** `GET /rest/v1/company_settings?select=id&limit=1` (no inserts/updates/deletes).
+- **Credentials:** GitHub Actions secrets only (never client-side, never service-role for this job):
+  - `SUPABASE_ANON_KEY` (required) — publishable anon key
+  - `SUPABASE_URL` (optional) — defaults to this project URL
+  - `APP_HEALTH_URL` (optional) — e.g. `https://your-app.vercel.app/api/health`
+
+Local smoke test:
+
+```bash
+node scripts/supabase-keep-alive.mjs
+```
 
 ### Option B: Free Cron Monitor (e.g. cron-job.org)
-1. Register a free account at [cron-job.org](https://cron-job.org).
-2. Create a new cron job:
-   - **URL:** `https://your-domain.com/api/health` (or direct Supabase REST endpoint: `https://eccoqnsmbebmumxuhhkv.supabase.co/rest/v1/company_settings?select=id&limit=1`).
-   - **Schedule:** Every 3 days (e.g., At 08:00 AM, Day 1, 4, 7, 10...).
-   - **Method:** `GET`
-   - **Headers:** (If calling Supabase direct)
-     - `apikey: <YOUR_ANON_KEY>`
-     - `Authorization: Bearer <YOUR_ANON_KEY>`
+1. Register at [cron-job.org](https://cron-job.org).
+2. Create a job every 5 minutes against `https://your-domain.com/api/health`, **or** the same Supabase REST URL with anon headers (`apikey` + `Authorization: Bearer`).
 
 ### Option C: UptimeRobot
 - Monitor Type: **HTTP(s)**
 - URL: `https://your-domain.com/api/health`
-- Interval: Set to the maximum free interval (e.g. daily or custom low frequency).
+- Interval: as frequent as your plan allows (prefer GitHub Actions for the 5‑minute DB probe).
 
 ---
 

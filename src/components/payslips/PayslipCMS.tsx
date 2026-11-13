@@ -63,12 +63,14 @@ const isUuid = (str?: string | null) =>
 export function PayslipCMS({ initialData, isEditing = false }: PayslipCMSProps) {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { isSuperAdmin, isManager } = useAuth();
+  const { isSuperAdmin, isManager, authReady } = useAuth();
   const printRef = useRef<HTMLDivElement>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   useEffect(() => {
+    // Wait until roles are loaded — otherwise Super Admin gets a false deny
+    if (!authReady) return;
     if (isEditing && !isSuperAdmin) {
       toast.error("Only Super Admin can edit existing payslips.");
       navigate({ to: "/payslips" });
@@ -78,7 +80,7 @@ export function PayslipCMS({ initialData, isEditing = false }: PayslipCMSProps) 
       toast.error("You do not have permission to create payslips.");
       navigate({ to: "/payslips" });
     }
-  }, [isEditing, isSuperAdmin, isManager, navigate]);
+  }, [authReady, isEditing, isSuperAdmin, isManager, navigate]);
 
   // Fetch company settings & employees
   const { data: settings } = useQuery<CompanySettings | null>({

@@ -1,41 +1,56 @@
-name: Supabase Health Check & Keep-Alive
+name: Supabase Keep-Alive
 
-# Scheduled every 3 days at 06:00 UTC (well within Supabase Free Plan's 7-day inactivity pause policy)
-# Lightweight, read-only probe. No database writes, no storage uploads, no fake records.
+# Every 5 minutes — independent of user traffic.
+# Read-only REST probe (company_settings?select=id&limit=1). Zero writes.
 on:
   schedule:
-    - cron: '0 6 */3 * *'
-  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-keep-alive
+  cancel-in-progress: false
 
 jobs:
-  health-check:
-    name: Ping Application & Supabase Health
+  keep-alive:
+    name: Ping Supabase (read-only)
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 2
 
     steps:
-      - name: Perform Lightweight Read-Only Health Check
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run keep-alive probe
         env:
-          APP_HEALTH_URL: ${{ secrets.APP_HEALTH_URL }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://eccoqnsmbebmumxuhhkv.supabase.co' }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          # Fallbacks if only VITE_* secrets were configured
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          APP_HEALTH_URL: ${{ secrets.APP_HEALTH_URL }}
         run: |
-          echo "Starting scheduled low-frequency health check..."
-          
-          # 1. Probe deployed application health endpoint if configured
-          if [ -n "$APP_HEALTH_URL" ]; then
-            echo "Probing App Health Endpoint: $APP_HEALTH_URL"
-            curl -sSf -m 20 "$APP_HEALTH_URL" || echo "App health endpoint returned non-200"
+          set -euo pipefail
+
+          # Default project URL when secret is empty (no keys inlined)
+          if [ -z "${SUPABASE_URL:-}" ] && [ -z "${VITE_SUPABASE_URL:-}" ]; then
+            export SUPABASE_URL="https://eccoqnsmbebmumxuhhkv.supabase.co"
           fi
 
-          # 2. Minimal direct Supabase REST probe (read 1 config ID, zero writes)
-          if [ -n "$SUPABASE_ANON_KEY" ]; then
-            echo "Probing Supabase REST layer..."
-            curl -sSf -m 20 \
-              -H "apikey: $SUPABASE_ANON_KEY" \
-              -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
-              "$SUPABASE_URL/rest/v1/company_settings?select=id&limit=1" \
-              -o /dev/null -w "HTTP Status: %{http_code}\n"
+          echo "Running scripts/supabase-keep-alive.mjs ..."
+          node scripts/supabase-keep-alive.mjs
+
+          # Optional: also warm the deployed app health endpoint (still read-only)
+          if [ -n "${APP_HEALTH_URL:-}" ]; then
+            echo "Probing APP_HEALTH_URL (no secrets logged)..."
+            curl -sS -m 20 -o /dev/null -w "App health HTTP %{http_code}\n" "$APP_HEALTH_URL" \
+              || echo "App health endpoint unreachable (non-fatal)"
           fi
-          
-          echo "Health check complete. Zero writes or side effects created."
